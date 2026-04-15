@@ -1,0 +1,30 @@
+# Ark Project .gitignore
+
+# Data files (large binaries)
+data/kiwix-packages/*.zim
+data/maps/*.obf
+data/ai-models/*.gguf
+data/ai-models/*.bin
+data/ai-models/*.safetensors
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 3D print temp files
+*.gcode
+*.x3g
+*.3mf
+
+# OS
+*.lnk
+Desktop.ini

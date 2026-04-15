@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文明守望 - Ark 原型展示</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #aaa;
+            font-size: 1.1rem;
+        }
+        
+        .main-container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 30px;
+        }
+        
+        .viewer-section {
+            flex: 2;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 500px;
+            background: #0a0a0a;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .viewer-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+        }
+        
+        .viewer-controls button {
+            background: rgba(233, 69, 96, 0.8);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        
+        .viewer-controls button:hover {
+            background: rgba(233, 69, 96, 1);
+            transform: scale(1.05);
+        }
+        
+        .info-section {
+            flex: 1;
+            min-width: 350px;
+        }
+        
+        .component-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .component-card:hover, .component-card.active {
+            background: rgba(233, 69, 96, 0.15);
+            border-color: rgba(233, 69, 96, 0.5);
+            transform: translateX(5px);
+        }
+        
+        .component-card h3 {
+            color: #e94560;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .component-card p {
+            color: #bbb;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .detail-panel {
+            background: rgba(0,0,0,0.4);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            display: none;
+        }
+        
+        .detail-panel.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .detail-panel h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .detail-panel ul {
+            list-style: none;
+        }
+        
+        .detail-panel li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #ddd;
+        }
+        
+        .detail-panel li:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-panel li::before {
+            content: "▸";
+            color: #e94560;
+            margin-right: 10px;
+        }
+        
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .spec-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .spec-item .label {
+            color: #888;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+        
+        .spec-item .value {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .info-section {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>「文明守望」Ark 原型</h1>
+        <p>基于一加8T + Linux容器方案的离线知识生存设备</p>
+    </div>
+    
+    <div class="main-container">
+        <div class="viewer-section">
+            <div id="canvas-container">
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #333;"></div>
+                        <span>3D打印外壳</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #1a1a2e;"></div>
+                        <span>一加8T主机</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4169e1;"></div>
+                        <span>太阳能电池板</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e94560;"></div>
+                        <span>储能电池</span>
+                    </div>
+                </div>
+                <div class="viewer-controls">
+                    <button onclick="resetView()">重置视角</button>
+                    <button onclick="explodeView()">爆炸视图</button>
+                    <button onclick="toggleRotation()">自动旋转</button>
+                </div>
+            </div>
+            
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <div class="label">计算平台</div>
+                    <div class="value">Snapdragon 865</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">内存</div>
+                    <div class="value">8GB LPDDR5</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">存储</div>
+                    <div class="value">256GB + 扩展</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">太阳能功率</div>
+                    <div class="value">20W PD快充</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="component-card" data-component="case" onclick="showDetail('case')">
+                <h3>🛡️ 3D打印防护外壳</h3>
+                <p>IP54级防水防尘设计，集成散热风道与太阳能支架</p>
+            </div>
+            
+            <div class="component-card" data-component="phone" onclick="showDetail('phone')">
+                <h3>📱 一加8T主机</h3>
+                <p>Snapdragon 865核心，Linux容器运行完整离线AI系统</p>
+            </div>
+            
+            <div class="component-card" data-component="solar" onclick="showDetail('solar')">
+                <h3>☀️ 太阳能供电系统</h3>
+                <p>20W折叠太阳能板，USB-C PD快充，阴天仍可供电</p>
+            </div>
+            
+            <div class="component-card" data-component="battery" onclick="showDetail('battery')">
+                <h3>🔋 储能缓冲电池</h3>
+                <p>20000mAh户外电源，夜间持续运行，支持反向充电</p>
+            </div>
+            
+            <div class="component-card" data-component="software" onclick="showDetail('software')">
+                <h3>💿 离线软件栈</h3>
+                <p>Linux容器 + 本地LLM + Kiwix离线百科 + OsmAnd地图</p>
+            </div>
+            
+            <div id="detail-panel" class="detail-panel">
+                <h2 id="detail-title">组件详情</h2>
+                <ul id="detail-content"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>文明守望 Ark Project | 断网时代的知识火种</p>
+    </div>
+
+    <script>
+        // Three.js 场景设置
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0a);
+        
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(8, 6, 8);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // 灯光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+        
+        const pointLight = new THREE.PointLight(0xe94560, 0.5);
+        pointLight.position.set(-5, 5, -5);
+        scene.add(pointLight);
+        
+        // 设备组
+        const deviceGroup = new THREE.Group();
+        scene.add(deviceGroup);
+        
+        // 材料定义
+        const caseMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x444444,
+            roughness: 0.7,
+            metalness: 0.3
+        });
+        
+        const phoneMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a2e,
+            roughness: 0.2,
+            metalness: 0.8
+        });
+        
+        const screenMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x000000,
+            roughness: 0.1,
+            metalness: 0.9,
+            emissive: 0x001133,
+            emissiveIntensity: 0.3
+        });
+        
+        const solarMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x4169e1,
+            roughness: 0.4,
+            metalness: 0.6
+        });
+        
+        const batteryMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xe94560,
+            roughness: 0.5,
+            metalness: 0.4
+        });
+        
+        // 3D打印外壳 - 主箱体
+        const caseGeometry = new THREE.BoxGeometry(4, 5.5, 1.2);
+        const caseMesh = new THREE.Mesh(caseGeometry, caseMaterial);
+        caseMesh.castShadow = true;
+        caseMesh.receiveShadow = true;
+        deviceGroup.add(caseMesh);
+        
+        // 外壳边缘加强筋
+        const ribGeometry = new THREE.BoxGeometry(4.2, 0.3, 1.4);
+        const topRib = new THREE.Mesh(ribGeometry, caseMaterial);
+        topRib.position.y = 2.6;
+        deviceGroup.add(topRib);
+        
+        const bottomRib = new THREE.Mesh(ribGeometry, caseMaterial);
+        bottomRib.position.y = -2.6;
+        deviceGroup.add(bottomRib);
+        
+        // 一加8T主机
+        const phoneGeometry = new THREE.BoxGeometry(3.2, 4.2, 0.5);
+        const phoneMesh = new THREE.Mesh(phoneGeometry, phoneMaterial);
+        phoneMesh.position.z = 0.2;
+        phoneMesh.castShadow = true;
+        deviceGroup.add(phoneMesh);
+        
+        // 屏幕
+        const screenGeometry = new THREE.BoxGeometry(2.8, 3.8, 0.05);
+        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
+        screenMesh.position.z = 0.5;
+        deviceGroup.add(screenMesh);
+        
+        // 太阳能板支架
+        const solarStandGeometry = new THREE.BoxGeometry(0.3, 3, 0.3);
+        const solarStand = new THREE.Mesh(solarStandGeometry, caseMaterial);
+        solarStand.position.set(-2.5, 1, -1);
+        solarStand.rotation.z = -0.3;
+        deviceGroup.add(solarStand);
+        
+        // 太阳能电池板
+        const solarGeometry = new THREE.BoxGeometry(3.5, 4.5, 0.15);
+        const solarMesh = new THREE.Mesh(solarGeometry, solarMaterial);
+        solarMesh.position.set(-3.5, 2, -1.5);
+        solarMesh.rotation.z = -0.3;
+        solarMesh.rotation.y = -0.2;
+        solarMesh.castShadow = true;
+        deviceGroup.add(solarMesh);
+        
+        // 太阳能板网格纹理
+        for(let i = 0; i < 3; i++) {
+            for(let j = 0; j < 4; j++) {
+                const cellGeometry = new THREE.BoxGeometry(0.9, 0.9, 0.02);
+                const cellMesh = new THREE.Mesh(cellGeometry, new THREE.MeshStandardMaterial({
+                    color: 0x2244aa,
+                    roughness: 0.3,
+                    metalness: 0.7
+                }));
+                cellMesh.position.set(
+                    -3.5 + (i - 1) * 1,
+                    2 + (j - 1.5) * 1,
+                    -1.35
+                );
+                cellMesh.rotation.z = -0.3;
+                cellMesh.rotation.y = -0.2;
+                deviceGroup.add(cellMesh);
+            }
+        }
+        
+        // 储能电池
+        const batteryGeometry = new THREE.BoxGeometry(2.5, 1.5, 0.8);
+        const batteryMesh = new THREE.Mesh(batteryGeometry, batteryMaterial);
+        batteryMesh.position.set(0, -3.5, 0);
+        batteryMesh.castShadow = true;
+        deviceGroup.add(batteryMesh);
+        
+        // 电池指示灯
+        for(let i = 0; i < 4; i++) {
+            const ledGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+            const ledMesh = new THREE.Mesh(ledGeometry, new THREE.MeshStandardMaterial({
+                color: 0x00ff00,
+                emissive: 0x00ff00,
+                emissiveIntensity: 0.5
+            }));
+            ledMesh.position.set(-0.8 + i * 0.5, -3.5, 0.45);
+            deviceGroup.add(ledMesh);
+        }
+        
+        // 散热孔
+        for(let i = 0; i < 8; i++) {
+            const ventGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.3, 8);
+            const ventMesh = new THREE.Mesh(ventGeometry, new THREE.MeshStandardMaterial({
+                color: 0x222222
+            }));
+            ventMesh.rotation.x = Math.PI / 2;
+            ventMesh.position.set(-1.5 + i * 0.4, 0, -0.65);
+            deviceGroup.add(ventMesh);
+        }
+        
+        // 底座
+        const baseGeometry = new THREE.BoxGeometry(5, 0.3, 3);
+        const baseMesh = new THREE.Mesh(baseGeometry, new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.8
+        }));
+        baseMesh.position.y = -4.5;
+        baseMesh.position.z = -0.5;
+        baseMesh.receiveShadow = true;
+        deviceGroup.add(baseMesh);
+        
+        // 连接线
+        const cableCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-2, -3.1, 0),
+            new THREE.Vector3(-1, -3.5, 0.5),
+            new THREE.Vector3(0, -2.8, 0.3)
+        ]);
+        const cableGeometry = new THREE.TubeGeometry(cableCurve, 20, 0.08, 8, false);
+        const cableMesh = new THREE.Mesh(cableGeometry, new THREE.MeshStandardMaterial({
+            color: 0x111111
+        }));
+        deviceGroup.add(cableMesh);
+        
+        // 自动旋转
+        let autoRotate = false;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (autoRotate) {
+                deviceGroup.rotation.y += 0.005;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // 交互控制
+        function resetView() {
+            camera.position.set(8, 6, 8);
+            deviceGroup.rotation.set(0, 0, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+        
+        let exploded = false;
+        function explodeView() {
+            exploded = !exploded;
+            const targetPositions = exploded ? {
+                case: { y: 0 },
+                phone: { z: 1.5 },
+                solar: { x: -6, y: 4 },
+                battery: { y: -5.5 }
+            } : {
+                case: { y: 0 },
+                phone: { z: 0.2 },
+                solar: { x: -3.5, y: 2 },
+                battery: { y: -3.5 }
+            };
+            
+            // 使用简单的动画过渡
+            const duration = 500;
+            const startTime = Date.now();
+            const startPhoneZ = phoneMesh.position.z;
+            const startSolarX = solarMesh.position.x;
+            const startSolarY = solarMesh.position.y;
+            const startBatteryY = batteryMesh.position.y;
+            
+            function animateExplode() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+                
+                if (exploded) {
+                    phoneMesh.position.z = startPhoneZ + (1.3 - startPhoneZ) * ease;
+                    solarMesh.position.x = startSolarX + (-6 - startSolarX) * ease;
+                    solarMesh.position.y = startSolarY + (4 - startSolarY) * ease;
+                    batteryMesh.position.y = startBatteryY + (-5.5 - startBatteryY) * ease;
+                } else {
+                    phoneMesh.position.z = startPhoneZ + (0.2 - startPhoneZ) * ease;
+                    solarMesh.position.x = startSolarX + (-3.5 - startSolarX) * ease;
+                    solarMesh.position.y = startSolarY + (2 - startSolarY) * ease;
+                    batteryMesh.position.y = startBatteryY + (-3.5 - startBatteryY) * ease;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateExplode);
+                }
+            }
+            animateExplode();
+        }
+        
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+        }
+        
+        // 详情面板数据
+        const componentDetails = {
+            case: {
+                title: '🛡️ 3D打印防护外壳',
+                items: [
+                    '材质: PETG/ASA 耐紫外线3D打印材料',
+                    '防护等级: IP54（防尘、防泼溅）',
+                    '结构: 双层设计，外层防护+内层减震',
+                    '散热: 8组风道散热孔，被动散热设计',
+                    '接口: 防水硅胶盖保护USB-C充电口',
+                    '安装: 太阳能板折叠支架一体化设计',
+                    '打印时长: 约12-16小时（分部件打印）'
+                ]
+            },
+            phone: {
+                title: '📱 一加8T主机',
+                items: [
+                    'SoC: Qualcomm Snapdragon 865 (7nm)',
+                    'CPU: 1×2.84GHz + 3×2.42GHz + 4×1.8GHz',
+                    'GPU: Adreno 650',
+                    'RAM: 8GB/12GB LPDDR5',
+                    '存储: 256GB UFS 3.1 + 1TB SD扩展',
+                    '屏幕: 6.55" 120Hz AMOLED (2400×1080)',
+                    '原生电池: 4500mAh，支持65W快充',
+                    '系统: LineageOS 20 (Android 13) 去Google服务版'
+                ]
+            },
+            solar: {
+                title: '☀️ 太阳能供电系统',
+                items: [
+                    '太阳能板: 单晶硅20W折叠式面板',
+                    '输出: USB-C PD 18W快充',
+                    '转换效率: ≥22%',
+                    '尺寸: 展开400×300mm / 折叠200×150mm',
+                    '重量: 约350g',
+                    '工作温度: -20°C ~ 60°C',
+                    '阴天模式: 5W低光环境仍可充电',
+                    '支架: 可调角度0-60°，优化日照接收'
+                ]
+            },
+            battery: {
+                title: '🔋 储能缓冲电池',
+                items: [
+                    '容量: 20000mAh (74Wh)',
+                    '电芯: 聚合物锂电池',
+                    '输出: USB-C PD 30W + USB-A 18W',
+                    '输入: USB-C PD 30W快充',
+                    '充电时间: 约3小时（太阳能满功率）',
+                    '循环寿命: >500次',
+                    '保护: 过充/过放/短路/温度保护',
+                    'LED电量显示: 4级电量指示'
+                ]
+            },
+            software: {
+                title: '💿 离线软件栈（Linux容器方案）',
+                items: [
+                    '容器: Andronix Debian 12 无桌面版',
+                    '本地AI: llama.cpp + Llama-3-8B-Q4_K_M（5GB）',
+                    '知识库: Kiwix服务器 + WikiMed + Appropedia',
+                    '地图: OsmAnd 离线地图包（省级数据）',
+                    '文档: Calibre-Web 电子书库',
+                    '工具: 离线翻译、计算器、单位转换',
+                    '启动器: Termux:Widget 一键启动脚本',
+                    '数据总量: 约15GB离线压缩数据'
+                ]
+            }
+        };
+        
+        function showDetail(component) {
+            const panel = document.getElementById('detail-panel');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+            
+            // 更新活跃状态
+            document.querySelectorAll('.component-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-component="${component}"]`).classList.add('active');
+            
+            // 填充内容
+            const detail = componentDetails[component];
+            title.textContent = detail.title;
+            content.innerHTML = detail.items.map(item => `<li>${item}</li>`).join('');
+            
+            panel.classList.add('show');
+        }
+        
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>
