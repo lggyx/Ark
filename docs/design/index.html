@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文明守望 - Ark 原型展示</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <title>ARK · 文明守望 - 产品原型展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,138 +14,331 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0f2847 100%);
             min-height: 100vh;
             color: #fff;
+            overflow-x: hidden;
+        }
+        
+        /* 加载动画 */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(233, 69, 96, 0.2);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loader-text {
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         .header {
             text-align: center;
-            padding: 30px 20px;
-            background: rgba(0,0,0,0.3);
+            padding: 40px 20px 30px;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #e94560, transparent);
+        }
+        
+        .header-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #e94560;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
         }
         
         .header h1 {
-            font-size: 2.5rem;
-            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #e94560 50%, #ff6b6b 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+        
+        .header h1 span {
+            font-weight: 300;
+            opacity: 0.7;
         }
         
         .header p {
-            color: #aaa;
+            color: #8892b0;
             font-size: 1.1rem;
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
         
         .main-container {
             display: flex;
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 20px;
-            gap: 30px;
+            padding: 20px 40px 40px;
+            gap: 40px;
         }
         
         .viewer-section {
-            flex: 2;
+            flex: 1.5;
+            min-width: 0;
         }
         
         #canvas-container {
             width: 100%;
-            height: 500px;
-            background: #0a0a0a;
-            border-radius: 15px;
+            height: 600px;
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a1a 100%);
+            border-radius: 20px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            box-shadow: 
+                0 0 0 1px rgba(255,255,255,0.05),
+                0 20px 80px rgba(0,0,0,0.6),
+                0 0 100px rgba(233, 69, 96, 0.1);
+        }
+        
+        #canvas-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            border: 1px solid rgba(233, 69, 96, 0.15);
+            pointer-events: none;
         }
         
         .viewer-controls {
             position: absolute;
-            bottom: 15px;
+            bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 10px;
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border-radius: 25px;
+            gap: 12px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
         }
         
         .viewer-controls button {
-            background: rgba(233, 69, 96, 0.8);
-            border: none;
-            color: white;
-            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            padding: 10px 20px;
             border-radius: 20px;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: all 0.3s;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .viewer-controls button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(255, 107, 107, 0.2));
+            opacity: 0;
+            transition: opacity 0.3s;
         }
         
         .viewer-controls button:hover {
-            background: rgba(233, 69, 96, 1);
-            transform: scale(1.05);
+            border-color: rgba(233, 69, 96, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(233, 69, 96, 0.3);
+        }
+        
+        .viewer-controls button:hover::before {
+            opacity: 1;
+        }
+        
+        .viewer-controls button.active {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #e94560;
+            color: #ff6b6b;
         }
         
         .info-section {
             flex: 1;
-            min-width: 350px;
+            min-width: 380px;
+            max-width: 420px;
         }
         
         .component-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #e94560, #ff6b6b);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
         
         .component-card:hover, .component-card.active {
-            background: rgba(233, 69, 96, 0.15);
-            border-color: rgba(233, 69, 96, 0.5);
-            transform: translateX(5px);
+            background: rgba(233, 69, 96, 0.08);
+            border-color: rgba(233, 69, 96, 0.3);
+            transform: translateX(8px);
+            box-shadow: 0 10px 40px rgba(233, 69, 96, 0.15);
+        }
+        
+        .component-card:hover::before, .component-card.active::before {
+            opacity: 1;
+        }
+        
+        .component-card .icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(255, 107, 107, 0.1));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            border: 1px solid rgba(233, 69, 96, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .component-card:hover .icon {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.3), rgba(255, 107, 107, 0.2));
         }
         
         .component-card h3 {
-            color: #e94560;
-            margin-bottom: 8px;
-            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
         }
         
         .component-card p {
-            color: #bbb;
+            color: #8892b0;
             font-size: 0.9rem;
-            line-height: 1.5;
+            line-height: 1.6;
+            font-weight: 400;
         }
         
         .detail-panel {
-            background: rgba(0,0,0,0.4);
-            border-radius: 15px;
-            padding: 25px;
-            margin-top: 20px;
-            border: 1px solid rgba(233, 69, 96, 0.3);
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 32px;
+            margin-top: 24px;
+            border: 1px solid rgba(233, 69, 96, 0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
             display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .detail-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.5), transparent);
         }
         
         .detail-panel.show {
             display: block;
-            animation: fadeIn 0.3s ease;
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
         .detail-panel h2 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .detail-panel h2 .badge {
+            padding: 4px 10px;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 6px;
+            font-size: 0.7rem;
             color: #e94560;
-            margin-bottom: 15px;
-            font-size: 1.3rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .detail-panel ul {
@@ -153,9 +346,18 @@
         }
         
         .detail-panel li {
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            color: #ddd;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            color: #a8b2d1;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: color 0.3s;
+        }
+        
+        .detail-panel li:hover {
+            color: #fff;
         }
         
         .detail-panel li:last-child {
@@ -163,524 +365,748 @@
         }
         
         .detail-panel li::before {
-            content: "▸";
+            content: "�?;
             color: #e94560;
-            margin-right: 10px;
+            font-weight: bold;
+            flex-shrink: 0;
         }
         
         .specs-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
+            gap: 16px;
+            margin-top: 24px;
         }
         
         .spec-item {
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 12px;
             text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s;
+        }
+        
+        .spec-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(233, 69, 96, 0.2);
+            transform: translateY(-2px);
         }
         
         .spec-item .label {
-            color: #888;
-            font-size: 0.8rem;
+            color: #64748b;
+            font-size: 0.75rem;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            margin-bottom: 8px;
         }
         
         .spec-item .value {
             color: #fff;
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-top: 5px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
         }
         
         .legend {
             position: absolute;
-            top: 15px;
-            left: 15px;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
+            top: 25px;
+            left: 25px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        
+        .legend-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-weight: 600;
         }
         
         .legend-item {
             display: flex;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+        
+        .legend-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .legend-item:last-child {
+            margin-bottom: 0;
         }
         
         .legend-color {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 4px;
-            margin-right: 10px;
+            margin-right: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-size: 0.8rem;
+            color: #00ff88;
+            font-weight: 500;
         }
         
         .footer {
             text-align: center;
-            padding: 30px;
-            color: #666;
-            font-size: 0.9rem;
+            padding: 40px;
+            color: #64748b;
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 20px;
         }
         
-        @media (max-width: 900px) {
+        .footer-brand {
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        
+        @media (max-width: 1200px) {
             .main-container {
                 flex-direction: column;
+                padding: 20px;
             }
             .info-section {
                 min-width: auto;
+                max-width: none;
             }
+            #canvas-container {
+                height: 500px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            .main-container {
+                padding: 15px;
+            }
+            .legend {
+                top: 15px;
+                left: 15px;
+                padding: 12px;
+            }
+            .viewer-controls {
+                padding: 8px 16px;
+                gap: 8px;
+            }
+            .viewer-controls button {
+                padding: 8px 14px;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* 产品展示�?*/
+        .products-showcase {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+        
+        @media (max-width: 900px) {
+            .products-showcase {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            .product-divider {
+                transform: rotate(90deg);
+            }
+        }
+        
+        .product-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 40px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(233, 69, 96, 0.3);
+            box-shadow: 0 20px 60px rgba(233, 69, 96, 0.15);
+        }
+        
+        .product-card:hover::before {
+            opacity: 1;
+        }
+        
+        .product-card:last-child::before {
+            background: linear-gradient(90deg, #4169e1, #6495ed);
+        }
+        
+        .product-card:last-child:hover {
+            box-shadow: 0 20px 60px rgba(65, 105, 225, 0.15);
+            border-color: rgba(65, 105, 225, 0.3);
+        }
+        
+        .product-image {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .product-visual {
+            position: relative;
+            transform-style: preserve-3d;
+        }
+        
+        .station-visual {
+            width: 160px;
+            height: 120px;
+        }
+        
+        .visual-element {
+            position: absolute;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .element-main {
+            width: 80px;
+            height: 100px;
+            background: linear-gradient(145deg, #333344, #2a2a3a);
+            border: 2px solid rgba(255,255,255,0.2);
+            left: 40px;
+            top: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        
+        .element-solar {
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(145deg, #1a3a8a, #2a4aaa);
+            border: 2px solid rgba(65, 105, 225, 0.5);
+            left: 0;
+            top: 20px;
+            transform: rotate(-15deg);
+            box-shadow: 0 8px 25px rgba(65, 105, 225, 0.3);
+        }
+        
+        .element-panel {
+            width: 40px;
+            height: 50px;
+            background: linear-gradient(145deg, #8a1a3a, #aa2a4a);
+            border: 2px solid rgba(233, 69, 96, 0.5);
+            right: 0;
+            top: 35px;
+            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.3);
+        }
+        
+        .visual-glow {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(233, 69, 96, 0.2) 0%, transparent 70%);
+            top: -40px;
+            left: -20px;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+        
+        .visual-glow.blue {
+            background: radial-gradient(circle, rgba(65, 105, 225, 0.2) 0%, transparent 70%);
+        }
+        
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+        
+        .watch-visual {
+            width: 140px;
+            height: 180px;
+        }
+        
+        .watch-face {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            border-radius: 50%;
+            position: absolute;
+            left: 30px;
+            top: 50px;
+            border: 4px solid #4a4a5a;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .watch-hand {
+            position: absolute;
+            background: #333;
+            border-radius: 2px;
+            transform-origin: bottom center;
+        }
+        
+        .watch-hand.hour {
+            width: 4px;
+            height: 22px;
+            top: 18px;
+            animation: rotateHour 60s linear infinite;
+        }
+        
+        .watch-hand.minute {
+            width: 3px;
+            height: 30px;
+            top: 10px;
+            animation: rotateMinute 10s linear infinite;
+        }
+        
+        .watch-center {
+            width: 8px;
+            height: 8px;
+            background: #e94560;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 2;
+        }
+        
+        @keyframes rotateHour {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes rotateMinute {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .watch-band {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(145deg, #1a3a1a, #2a4a2a);
+            left: 45px;
+            border-radius: 8px;
+        }
+        
+        .watch-band.top {
+            top: 0;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        
+        .watch-band.bottom {
+            bottom: 0;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+        
+        .product-tag {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #e94560;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+        
+        .product-card:last-child .product-tag {
+            background: rgba(65, 105, 225, 0.15);
+            border-color: rgba(65, 105, 225, 0.3);
+            color: #4169e1;
+        }
+        
+        .product-info h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        
+        .product-desc {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+        
+        .product-specs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .product-specs .spec {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .product-features {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .feature {
+            padding: 4px 10px;
+            background: rgba(233, 69, 96, 0.1);
+            border: 1px solid rgba(233, 69, 96, 0.2);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .product-card:last-child .feature {
+            background: rgba(65, 105, 225, 0.1);
+            border-color: rgba(65, 105, 225, 0.2);
+        }
+        
+        .view-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .view-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.4);
+        }
+        
+        .view-btn.secondary {
+            background: linear-gradient(135deg, #4169e1, #6495ed);
+        }
+        
+        .view-btn.secondary:hover {
+            box-shadow: 0 8px 25px rgba(65, 105, 225, 0.4);
+        }
+        
+        .product-divider {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .divider-line {
+            width: 2px;
+            height: 60px;
+            background: linear-gradient(180deg, transparent, rgba(255,255,255,0.2), transparent);
+        }
+        
+        .divider-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .ecosystem-section {
+            max-width: 1000px;
+            margin: 60px auto;
+            padding: 0 40px;
+            text-align: center;
+        }
+        
+        .ecosystem-section h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+        
+        .ecosystem-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .flow-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px 32px;
+            min-width: 160px;
+        }
+        
+        .flow-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        
+        .flow-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        
+        .flow-desc {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.5;
+        }
+        
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: rgba(255,255,255,0.3);
+        }
+        
+        .flow-arrow span {
+            font-size: 0.7rem;
+            margin-top: 4px;
+            color: rgba(255,255,255,0.4);
+        }
+        
+        .footer-links {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 0.85rem;
+        }
+        
+        .footer-links a {
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: #e94560;
         }
     </style>
 </head>
 <body>
+    <!-- 加载动画 -->
+    <div class="loader" id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">INITIALIZING ARK ECOSYSTEM...</div>
+    </div>
+
     <div class="header">
-        <h1>「文明守望」Ark 原型</h1>
-        <p>基于一加8T + Linux容器方案的离线知识生存设备</p>
+        <div class="header-badge">Product Line v1.0</div>
+        <h1>ARK <span>文明守望</span></h1>
+        <p>离线知识生存生态系�?· 基站 + 腕表协同方案<br>Offline Knowledge Survival Ecosystem for the Post-Network Era</p>
     </div>
     
-    <div class="main-container">
-        <div class="viewer-section">
-            <div id="canvas-container">
-                <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #333;"></div>
-                        <span>3D打印外壳</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #1a1a2e;"></div>
-                        <span>一加8T主机</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #4169e1;"></div>
-                        <span>太阳能电池板</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #e94560;"></div>
-                        <span>储能电池</span>
-                    </div>
-                </div>
-                <div class="viewer-controls">
-                    <button onclick="resetView()">重置视角</button>
-                    <button onclick="explodeView()">爆炸视图</button>
-                    <button onclick="toggleRotation()">自动旋转</button>
+    <!-- 产品选择区域 -->
+    <div class="products-showcase">
+        <div class="product-card" onclick="location.href='base-station.html'">
+            <div class="product-image">
+                <div class="product-visual station-visual">
+                    <div class="visual-element element-main"></div>
+                    <div class="visual-element element-solar"></div>
+                    <div class="visual-element element-panel"></div>
+                    <div class="visual-glow"></div>
                 </div>
             </div>
-            
-            <div class="specs-grid">
-                <div class="spec-item">
-                    <div class="label">计算平台</div>
-                    <div class="value">Snapdragon 865</div>
+            <div class="product-info">
+                <div class="product-tag">Base Station</div>
+                <h2>ARK 基站</h2>
+                <p class="product-desc">离线知识生存核心节点</p>
+                <div class="product-specs">
+                    <div class="spec"><span>Snapdragon 865</span></div>
+                    <div class="spec"><span>20W 太阳�?/span></div>
+                    <div class="spec"><span>15GB 知识�?/span></div>
                 </div>
-                <div class="spec-item">
-                    <div class="label">内存</div>
-                    <div class="value">8GB LPDDR5</div>
+                <div class="product-features">
+                    <span class="feature">本地AI推理</span>
+                    <span class="feature">离线百科</span>
+                    <span class="feature">应急电�?/span>
                 </div>
-                <div class="spec-item">
-                    <div class="label">存储</div>
-                    <div class="value">256GB + 扩展</div>
-                </div>
-                <div class="spec-item">
-                    <div class="label">太阳能功率</div>
-                    <div class="value">20W PD快充</div>
-                </div>
+                <button class="view-btn">
+                    查看原型
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
             </div>
         </div>
         
-        <div class="info-section">
-            <div class="component-card" data-component="case" onclick="showDetail('case')">
-                <h3>🛡️ 3D打印防护外壳</h3>
-                <p>IP54级防水防尘设计，集成散热风道与太阳能支架</p>
+        <div class="product-divider">
+            <div class="divider-line"></div>
+            <div class="divider-icon">+</div>
+            <div class="divider-line"></div>
+        </div>
+        
+        <div class="product-card" onclick="location.href='watch.html'">
+            <div class="product-image">
+                <div class="product-visual watch-visual">
+                    <div class="watch-face">
+                        <div class="watch-hand hour"></div>
+                        <div class="watch-hand minute"></div>
+                        <div class="watch-center"></div>
+                    </div>
+                    <div class="watch-band top"></div>
+                    <div class="watch-band bottom"></div>
+                    <div class="visual-glow blue"></div>
+                </div>
             </div>
-            
-            <div class="component-card" data-component="phone" onclick="showDetail('phone')">
-                <h3>📱 一加8T主机</h3>
-                <p>Snapdragon 865核心，Linux容器运行完整离线AI系统</p>
+            <div class="product-info">
+                <div class="product-tag">Wearable</div>
+                <h2>ARK 腕表</h2>
+                <p class="product-desc">个人生存可穿戴设�?/p>
+                <div class="product-specs">
+                    <div class="spec"><span>E-ink �?/span></div>
+                    <div class="spec"><span>30天续�?/span></div>
+                    <div class="spec"><span>5ATM防水</span></div>
+                </div>
+                <div class="product-features">
+                    <span class="feature">心率监测</span>
+                    <span class="feature">离线通信</span>
+                    <span class="feature">紧急SOS</span>
+                </div>
+                <button class="view-btn secondary">
+                    查看原型
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
             </div>
-            
-            <div class="component-card" data-component="solar" onclick="showDetail('solar')">
-                <h3>☀️ 太阳能供电系统</h3>
-                <p>20W折叠太阳能板，USB-C PD快充，阴天仍可供电</p>
+        </div>
+    </div>
+    
+    <!-- 生态系统说�?-->
+    <div class="ecosystem-section">
+        <h3>协同工作模式</h3>
+        <div class="ecosystem-flow">
+            <div class="flow-item">
+                <div class="flow-icon">📡</div>
+                <div class="flow-title">ARK 基站</div>
+                <div class="flow-desc">部署于庇护所<br>提供完整知识库与AI能力</div>
             </div>
-            
-            <div class="component-card" data-component="battery" onclick="showDetail('battery')">
-                <h3>🔋 储能缓冲电池</h3>
-                <p>20000mAh户外电源，夜间持续运行，支持反向充电</p>
+            <div class="flow-arrow">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                <span>LoRa 100m</span>
             </div>
-            
-            <div class="component-card" data-component="software" onclick="showDetail('software')">
-                <h3>💿 离线软件栈</h3>
-                <p>Linux容器 + 本地LLM + Kiwix离线百科 + OsmAnd地图</p>
+            <div class="flow-item">
+                <div class="flow-icon">�?/div>
+                <div class="flow-title">ARK 腕表</div>
+                <div class="flow-desc">个人随身佩戴<br>体征监测与紧急求�?/div>
             </div>
-            
-            <div id="detail-panel" class="detail-panel">
-                <h2 id="detail-title">组件详情</h2>
-                <ul id="detail-content"></ul>
+            <div class="flow-arrow">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                <span>Mesh 组网</span>
+            </div>
+            <div class="flow-item">
+                <div class="flow-icon">👥</div>
+                <div class="flow-title">社区网络</div>
+                <div class="flow-desc">多节点组�?br>分布式信息同�?/div>
             </div>
         </div>
     </div>
     
     <div class="footer">
-        <p>文明守望 Ark Project | 断网时代的知识火种</p>
+        <div class="footer-brand">ARK · 文明守望</div>
+        <p>Offline Knowledge Survival Ecosystem | When connectivity fails, Ark prevails</p>
+        <div class="footer-links">
+            <a href="base-station.html">基站原型</a>
+            <span>·</span>
+            <a href="watch.html">腕表原型</a>
+        </div>
     </div>
 
     <script>
-        // Three.js 场景设置
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a0a);
-        
-        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(8, 6, 8);
-        
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.shadowMap.enabled = true;
-        container.appendChild(renderer.domElement);
-        
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        
-        // 灯光
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 10, 5);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
-        
-        const pointLight = new THREE.PointLight(0xe94560, 0.5);
-        pointLight.position.set(-5, 5, -5);
-        scene.add(pointLight);
-        
-        // 设备组
-        const deviceGroup = new THREE.Group();
-        scene.add(deviceGroup);
-        
-        // 材料定义
-        const caseMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x444444,
-            roughness: 0.7,
-            metalness: 0.3
-        });
-        
-        const phoneMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x1a1a2e,
-            roughness: 0.2,
-            metalness: 0.8
-        });
-        
-        const screenMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x000000,
-            roughness: 0.1,
-            metalness: 0.9,
-            emissive: 0x001133,
-            emissiveIntensity: 0.3
-        });
-        
-        const solarMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x4169e1,
-            roughness: 0.4,
-            metalness: 0.6
-        });
-        
-        const batteryMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xe94560,
-            roughness: 0.5,
-            metalness: 0.4
-        });
-        
-        // 3D打印外壳 - 主箱体
-        const caseGeometry = new THREE.BoxGeometry(4, 5.5, 1.2);
-        const caseMesh = new THREE.Mesh(caseGeometry, caseMaterial);
-        caseMesh.castShadow = true;
-        caseMesh.receiveShadow = true;
-        deviceGroup.add(caseMesh);
-        
-        // 外壳边缘加强筋
-        const ribGeometry = new THREE.BoxGeometry(4.2, 0.3, 1.4);
-        const topRib = new THREE.Mesh(ribGeometry, caseMaterial);
-        topRib.position.y = 2.6;
-        deviceGroup.add(topRib);
-        
-        const bottomRib = new THREE.Mesh(ribGeometry, caseMaterial);
-        bottomRib.position.y = -2.6;
-        deviceGroup.add(bottomRib);
-        
-        // 一加8T主机
-        const phoneGeometry = new THREE.BoxGeometry(3.2, 4.2, 0.5);
-        const phoneMesh = new THREE.Mesh(phoneGeometry, phoneMaterial);
-        phoneMesh.position.z = 0.2;
-        phoneMesh.castShadow = true;
-        deviceGroup.add(phoneMesh);
-        
-        // 屏幕
-        const screenGeometry = new THREE.BoxGeometry(2.8, 3.8, 0.05);
-        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
-        screenMesh.position.z = 0.5;
-        deviceGroup.add(screenMesh);
-        
-        // 太阳能板支架
-        const solarStandGeometry = new THREE.BoxGeometry(0.3, 3, 0.3);
-        const solarStand = new THREE.Mesh(solarStandGeometry, caseMaterial);
-        solarStand.position.set(-2.5, 1, -1);
-        solarStand.rotation.z = -0.3;
-        deviceGroup.add(solarStand);
-        
-        // 太阳能电池板
-        const solarGeometry = new THREE.BoxGeometry(3.5, 4.5, 0.15);
-        const solarMesh = new THREE.Mesh(solarGeometry, solarMaterial);
-        solarMesh.position.set(-3.5, 2, -1.5);
-        solarMesh.rotation.z = -0.3;
-        solarMesh.rotation.y = -0.2;
-        solarMesh.castShadow = true;
-        deviceGroup.add(solarMesh);
-        
-        // 太阳能板网格纹理
-        for(let i = 0; i < 3; i++) {
-            for(let j = 0; j < 4; j++) {
-                const cellGeometry = new THREE.BoxGeometry(0.9, 0.9, 0.02);
-                const cellMesh = new THREE.Mesh(cellGeometry, new THREE.MeshStandardMaterial({
-                    color: 0x2244aa,
-                    roughness: 0.3,
-                    metalness: 0.7
-                }));
-                cellMesh.position.set(
-                    -3.5 + (i - 1) * 1,
-                    2 + (j - 1.5) * 1,
-                    -1.35
-                );
-                cellMesh.rotation.z = -0.3;
-                cellMesh.rotation.y = -0.2;
-                deviceGroup.add(cellMesh);
-            }
-        }
-        
-        // 储能电池
-        const batteryGeometry = new THREE.BoxGeometry(2.5, 1.5, 0.8);
-        const batteryMesh = new THREE.Mesh(batteryGeometry, batteryMaterial);
-        batteryMesh.position.set(0, -3.5, 0);
-        batteryMesh.castShadow = true;
-        deviceGroup.add(batteryMesh);
-        
-        // 电池指示灯
-        for(let i = 0; i < 4; i++) {
-            const ledGeometry = new THREE.SphereGeometry(0.08, 16, 16);
-            const ledMesh = new THREE.Mesh(ledGeometry, new THREE.MeshStandardMaterial({
-                color: 0x00ff00,
-                emissive: 0x00ff00,
-                emissiveIntensity: 0.5
-            }));
-            ledMesh.position.set(-0.8 + i * 0.5, -3.5, 0.45);
-            deviceGroup.add(ledMesh);
-        }
-        
-        // 散热孔
-        for(let i = 0; i < 8; i++) {
-            const ventGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.3, 8);
-            const ventMesh = new THREE.Mesh(ventGeometry, new THREE.MeshStandardMaterial({
-                color: 0x222222
-            }));
-            ventMesh.rotation.x = Math.PI / 2;
-            ventMesh.position.set(-1.5 + i * 0.4, 0, -0.65);
-            deviceGroup.add(ventMesh);
-        }
-        
-        // 底座
-        const baseGeometry = new THREE.BoxGeometry(5, 0.3, 3);
-        const baseMesh = new THREE.Mesh(baseGeometry, new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            roughness: 0.8
-        }));
-        baseMesh.position.y = -4.5;
-        baseMesh.position.z = -0.5;
-        baseMesh.receiveShadow = true;
-        deviceGroup.add(baseMesh);
-        
-        // 连接线
-        const cableCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-2, -3.1, 0),
-            new THREE.Vector3(-1, -3.5, 0.5),
-            new THREE.Vector3(0, -2.8, 0.3)
-        ]);
-        const cableGeometry = new THREE.TubeGeometry(cableCurve, 20, 0.08, 8, false);
-        const cableMesh = new THREE.Mesh(cableGeometry, new THREE.MeshStandardMaterial({
-            color: 0x111111
-        }));
-        deviceGroup.add(cableMesh);
-        
-        // 自动旋转
-        let autoRotate = false;
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            if (autoRotate) {
-                deviceGroup.rotation.y += 0.005;
-            }
-            
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        
-        animate();
-        
-        // 交互控制
-        function resetView() {
-            camera.position.set(8, 6, 8);
-            deviceGroup.rotation.set(0, 0, 0);
-            controls.target.set(0, 0, 0);
-            controls.update();
-        }
-        
-        let exploded = false;
-        function explodeView() {
-            exploded = !exploded;
-            const targetPositions = exploded ? {
-                case: { y: 0 },
-                phone: { z: 1.5 },
-                solar: { x: -6, y: 4 },
-                battery: { y: -5.5 }
-            } : {
-                case: { y: 0 },
-                phone: { z: 0.2 },
-                solar: { x: -3.5, y: 2 },
-                battery: { y: -3.5 }
-            };
-            
-            // 使用简单的动画过渡
-            const duration = 500;
-            const startTime = Date.now();
-            const startPhoneZ = phoneMesh.position.z;
-            const startSolarX = solarMesh.position.x;
-            const startSolarY = solarMesh.position.y;
-            const startBatteryY = batteryMesh.position.y;
-            
-            function animateExplode() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const ease = 1 - Math.pow(1 - progress, 3);
-                
-                if (exploded) {
-                    phoneMesh.position.z = startPhoneZ + (1.3 - startPhoneZ) * ease;
-                    solarMesh.position.x = startSolarX + (-6 - startSolarX) * ease;
-                    solarMesh.position.y = startSolarY + (4 - startSolarY) * ease;
-                    batteryMesh.position.y = startBatteryY + (-5.5 - startBatteryY) * ease;
-                } else {
-                    phoneMesh.position.z = startPhoneZ + (0.2 - startPhoneZ) * ease;
-                    solarMesh.position.x = startSolarX + (-3.5 - startSolarX) * ease;
-                    solarMesh.position.y = startSolarY + (2 - startSolarY) * ease;
-                    batteryMesh.position.y = startBatteryY + (-3.5 - startBatteryY) * ease;
-                }
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animateExplode);
-                }
-            }
-            animateExplode();
-        }
-        
-        function toggleRotation() {
-            autoRotate = !autoRotate;
-        }
-        
-        // 详情面板数据
-        const componentDetails = {
-            case: {
-                title: '🛡️ 3D打印防护外壳',
-                items: [
-                    '材质: PETG/ASA 耐紫外线3D打印材料',
-                    '防护等级: IP54（防尘、防泼溅）',
-                    '结构: 双层设计，外层防护+内层减震',
-                    '散热: 8组风道散热孔，被动散热设计',
-                    '接口: 防水硅胶盖保护USB-C充电口',
-                    '安装: 太阳能板折叠支架一体化设计',
-                    '打印时长: 约12-16小时（分部件打印）'
-                ]
-            },
-            phone: {
-                title: '📱 一加8T主机',
-                items: [
-                    'SoC: Qualcomm Snapdragon 865 (7nm)',
-                    'CPU: 1×2.84GHz + 3×2.42GHz + 4×1.8GHz',
-                    'GPU: Adreno 650',
-                    'RAM: 8GB/12GB LPDDR5',
-                    '存储: 256GB UFS 3.1 + 1TB SD扩展',
-                    '屏幕: 6.55" 120Hz AMOLED (2400×1080)',
-                    '原生电池: 4500mAh，支持65W快充',
-                    '系统: LineageOS 20 (Android 13) 去Google服务版'
-                ]
-            },
-            solar: {
-                title: '☀️ 太阳能供电系统',
-                items: [
-                    '太阳能板: 单晶硅20W折叠式面板',
-                    '输出: USB-C PD 18W快充',
-                    '转换效率: ≥22%',
-                    '尺寸: 展开400×300mm / 折叠200×150mm',
-                    '重量: 约350g',
-                    '工作温度: -20°C ~ 60°C',
-                    '阴天模式: 5W低光环境仍可充电',
-                    '支架: 可调角度0-60°，优化日照接收'
-                ]
-            },
-            battery: {
-                title: '🔋 储能缓冲电池',
-                items: [
-                    '容量: 20000mAh (74Wh)',
-                    '电芯: 聚合物锂电池',
-                    '输出: USB-C PD 30W + USB-A 18W',
-                    '输入: USB-C PD 30W快充',
-                    '充电时间: 约3小时（太阳能满功率）',
-                    '循环寿命: >500次',
-                    '保护: 过充/过放/短路/温度保护',
-                    'LED电量显示: 4级电量指示'
-                ]
-            },
-            software: {
-                title: '💿 离线软件栈（Linux容器方案）',
-                items: [
-                    '容器: Andronix Debian 12 无桌面版',
-                    '本地AI: llama.cpp + Llama-3-8B-Q4_K_M（5GB）',
-                    '知识库: Kiwix服务器 + WikiMed + Appropedia',
-                    '地图: OsmAnd 离线地图包（省级数据）',
-                    '文档: Calibre-Web 电子书库',
-                    '工具: 离线翻译、计算器、单位转换',
-                    '启动器: Termux:Widget 一键启动脚本',
-                    '数据总量: 约15GB离线压缩数据'
-                ]
-            }
-        };
-        
-        function showDetail(component) {
-            const panel = document.getElementById('detail-panel');
-            const title = document.getElementById('detail-title');
-            const content = document.getElementById('detail-content');
-            
-            // 更新活跃状态
-            document.querySelectorAll('.component-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            document.querySelector(`[data-component="${component}"]`).classList.add('active');
-            
-            // 填充内容
-            const detail = componentDetails[component];
-            title.textContent = detail.title;
-            content.innerHTML = detail.items.map(item => `<li>${item}</li>`).join('');
-            
-            panel.classList.add('show');
-        }
-        
-        // 窗口大小调整
-        window.addEventListener('resize', () => {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
+        // 页面加载完成后隐藏加载动�?        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 1000);
         });
     </script>
 </body>
 </html>
+        

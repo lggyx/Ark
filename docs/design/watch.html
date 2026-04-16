@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARK Watch · 生存腕表原型</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        
+        /* 加载动画 */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+        
+        .loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(233, 69, 96, 0.2);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loader-text {
+            margin-top: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: #e94560;
+            letter-spacing: 2px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 头部 */
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            position: relative;
+        }
+        
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(65, 105, 225, 0.2));
+            border: 1px solid rgba(233, 69, 96, 0.4);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #e94560;
+            margin-bottom: 16px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #e94560, #ff6b6b, #4169e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .header h1 span {
+            font-weight: 300;
+            opacity: 0.8;
+        }
+        
+        .header p {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.875rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        /* 产品标签 */
+        .product-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 0 20px 30px;
+            flex-wrap: wrap;
+        }
+        
+        .product-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+        
+        .product-tab:hover {
+            background: rgba(233, 69, 96, 0.1);
+            border-color: rgba(233, 69, 96, 0.3);
+            color: #e94560;
+        }
+        
+        .product-tab.active {
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(65, 105, 225, 0.2));
+            border-color: rgba(233, 69, 96, 0.4);
+            color: #e94560;
+        }
+        
+        /* 主容器 */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px 40px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 30px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 0 20px 40px;
+            }
+        }
+        
+        /* 3D视图区域 */
+        .viewer-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        #canvas-container {
+            position: relative;
+            height: 550px;
+            background: linear-gradient(145deg, rgba(10,10,26,0.8), rgba(22,33,62,0.6));
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        
+        #canvas-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(233, 69, 96, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(65, 105, 225, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* 连接状态 */
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px #00ff88;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* 配对状态 */
+        .pairing-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(65, 105, 225, 0.3);
+            z-index: 10;
+        }
+        
+        .pairing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .pairing-bar {
+            width: 3px;
+            height: 12px;
+            background: #4169e1;
+            border-radius: 2px;
+            animation: pairingWave 1s infinite;
+        }
+        
+        .pairing-bar:nth-child(2) { animation-delay: 0.1s; }
+        .pairing-bar:nth-child(3) { animation-delay: 0.2s; }
+        .pairing-bar:nth-child(4) { animation-delay: 0.3s; }
+        
+        @keyframes pairingWave {
+            0%, 100% { transform: scaleY(0.5); opacity: 0.5; }
+            50% { transform: scaleY(1); opacity: 1; }
+        }
+        
+        .pairing-text {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #4169e1;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* 图例 */
+        .legend {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+            min-width: 160px;
+        }
+        
+        .legend-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        
+        .legend-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* 控制按钮 */
+        .viewer-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .viewer-controls button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .viewer-controls button:hover {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: rgba(233, 69, 96, 0.4);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+        
+        .viewer-controls button.active {
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.3), rgba(65, 105, 225, 0.3));
+            border-color: rgba(233, 69, 96, 0.5);
+            color: #fff;
+        }
+        
+        /* 规格网格 */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            .specs-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .spec-item {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .spec-item:hover {
+            border-color: rgba(233, 69, 96, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.1);
+        }
+        
+        .spec-item .label {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .spec-item .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* 右侧信息面板 */
+        .info-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .component-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #e94560, #4169e1);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .component-card:hover {
+            background: linear-gradient(145deg, rgba(233, 69, 96, 0.1), rgba(65, 105, 225, 0.05));
+            border-color: rgba(233, 69, 96, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .component-card:hover::before {
+            opacity: 1;
+        }
+        
+        .component-card.active {
+            background: linear-gradient(145deg, rgba(233, 69, 96, 0.15), rgba(65, 105, 225, 0.1));
+            border-color: rgba(233, 69, 96, 0.4);
+        }
+        
+        .component-card.active::before {
+            opacity: 1;
+        }
+        
+        .component-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+        
+        .component-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        
+        .component-card p {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
+        }
+        
+        /* 详情面板 */
+        .detail-panel {
+            background: linear-gradient(145deg, rgba(233, 69, 96, 0.1), rgba(65, 105, 225, 0.05));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 0;
+            overflow: hidden;
+        }
+        
+        .detail-panel.show {
+            opacity: 1;
+            transform: translateY(0);
+            max-height: 600px;
+        }
+        
+        .detail-panel h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .detail-panel h2 .badge {
+            font-size: 0.65rem;
+            font-weight: 500;
+            padding: 4px 10px;
+            background: rgba(233, 69, 96, 0.3);
+            border-radius: 4px;
+            color: #e94560;
+            letter-spacing: 1px;
+        }
+        
+        .detail-panel ul {
+            list-style: none;
+        }
+        
+        .detail-panel li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .detail-panel li::before {
+            content: '▸';
+            color: #e94560;
+            font-weight: bold;
+        }
+        
+        .detail-panel li:last-child {
+            border-bottom: none;
+        }
+        
+        /* 页脚 */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            margin-top: 40px;
+        }
+        
+        .footer-brand {
+            font-size: 1.2rem;
+            font-weight: 600;
+            background: linear-gradient(90deg, #e94560, #4169e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .footer p {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+        }
+        
+        /* SOS按钮模拟 */
+        .sos-demo {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            font-size: 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4);
+            animation: sosPulse 2s infinite;
+            z-index: 100;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        @keyframes sosPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4); }
+            50% { box-shadow: 0 4px 30px rgba(233, 69, 96, 0.6), 0 0 40px rgba(233, 69, 96, 0.3); }
+        }
+        
+        .sos-demo:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载动画 -->
+    <div class="loader" id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">INITIALIZING ARK WATCH...</div>
+    </div>
+
+    <div class="header">
+        <div class="header-badge">
+            <span>Wearable</span>
+            <span>v1.0</span>
+        </div>
+        <h1>ARK Watch <span>生存腕表</span></h1>
+        <p>与ARK基站配对使用的可穿戴生存设备<br>Personal Survival Wearable for the Post-Network Era</p>
+    </div>
+    
+    <!-- 产品切换标签 -->
+    <div class="product-tabs">
+        <a href="base-station.html" class="product-tab">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2"/>
+                <path d="M9 9h6v6H9z"/>
+            </svg>
+            ARK基站
+        </a>
+        <a href="watch.html" class="product-tab active">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="8"/>
+                <path d="M12 8v4l3 3"/>
+            </svg>
+            ARK腕表
+        </a>
+    </div>
+    
+    <div class="main-container">
+        <div class="viewer-section">
+            <div id="canvas-container">
+                <div class="connection-status">
+                    <div class="status-dot"></div>
+                    <span class="status-text">HEARTBEAT OK</span>
+                </div>
+                
+                <div class="pairing-status">
+                    <div class="pairing-indicator">
+                        <div class="pairing-bar"></div>
+                        <div class="pairing-bar"></div>
+                        <div class="pairing-bar"></div>
+                        <div class="pairing-bar"></div>
+                    </div>
+                    <span class="pairing-text">PAIRED</span>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-title">Components</div>
+                    <div class="legend-item" data-part="case" onclick="highlightPart('case')">
+                        <div class="legend-color" style="background: #2a2a3a;"></div>
+                        <span>钛合金表壳</span>
+                    </div>
+                    <div class="legend-item" data-part="screen" onclick="highlightPart('screen')">
+                        <div class="legend-color" style="background: #1a1a2e;"></div>
+                        <span>电子墨水屏</span>
+                    </div>
+                    <div class="legend-item" data-part="band" onclick="highlightPart('band')">
+                        <div class="legend-color" style="background: #1a3a1a;"></div>
+                        <span>氟橡胶表带</span>
+                    </div>
+                    <div class="legend-item" data-part="sensor" onclick="highlightPart('sensor')">
+                        <div class="legend-color" style="background: #e94560;"></div>
+                        <span>传感器模组</span>
+                    </div>
+                </div>
+                
+                <div class="viewer-controls">
+                    <button onclick="resetView()" id="btn-reset">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/>
+                            <path d="M3 3v9h9"/>
+                        </svg>
+                        重置
+                    </button>
+                    <button onclick="explodeView()" id="btn-explode">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                        </svg>
+                        分解
+                    </button>
+                    <button onclick="toggleRotation()" id="btn-rotate">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                        </svg>
+                        旋转
+                    </button>
+                </div>
+            </div>
+            
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <div class="label">主控芯片</div>
+                    <div class="value">nRF52840</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">续航时间</div>
+                    <div class="value">30天</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">防水等级</div>
+                    <div class="value">5ATM</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">通信距离</div>
+                    <div class="value">100m</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="component-card" data-component="case" onclick="showDetail('case')">
+                <div class="icon">⌚</div>
+                <h3>钛合金表壳</h3>
+                <p>TC4钛合金CNC一体成型，蓝宝石玻璃镜面，5ATM防水，重量仅45g</p>
+            </div>
+            
+            <div class="component-card" data-component="screen" onclick="showDetail('screen')">
+                <div class="icon">📟</div>
+                <h3>电子墨水显示屏</h3>
+                <p>1.3寸圆形E-ink屏，阳光下清晰可读， Always-On显示，功耗极低</p>
+            </div>
+            
+            <div class="component-card" data-component="band" onclick="showDetail('band')">
+                <div class="icon">🔗</div>
+                <h3>快拆氟橡胶表带</h3>
+                <p>医疗级氟橡胶材质，抗紫外线，耐化学腐蚀，快拆设计便于更换</p>
+            </div>
+            
+            <div class="component-card" data-component="sensor" onclick="showDetail('sensor')">
+                <div class="icon">🫀</div>
+                <h3>生物传感器阵列</h3>
+                <p>PPG心率、血氧、体温、加速度计，支持跌倒检测和紧急SOS</p>
+            </div>
+            
+            <div class="component-card" data-component="comm" onclick="showDetail('comm')">
+                <div class="icon">📡</div>
+                <h3>离线通信系统</h3>
+                <p>LoRa+蓝牙5.2双模，与基站100米内自动同步，支持Mesh组网</p>
+            </div>
+            
+            <div id="detail-panel" class="detail-panel">
+                <h2 id="detail-title">
+                    <span class="badge">SPECIFICATION</span>
+                </h2>
+                <ul id="detail-content"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SOS演示按钮 -->
+    <div class="sos-demo" onclick="triggerSOS()" title="模拟SOS紧急求救">SOS</div>
+    
+    <div class="footer">
+        <div class="footer-brand">ARK · 文明守望</div>
+        <p>Personal Survival Node | When connectivity fails, Ark prevails</p>
+    </div>
+
+    <script>
+        // ===== THREE.JS 手表原型场景 =====
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+        scene.fog = new THREE.Fog(0x0a0a1a, 5, 25);
+        
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(6, 4, 6);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 15;
+        controls.maxPolarAngle = Math.PI / 1.2;
+        
+        // ===== 灯光系统 =====
+        const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.4);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 10, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.bias = -0.001;
+        scene.add(mainLight);
+        
+        const fillLight = new THREE.DirectionalLight(0x4169e1, 0.6);
+        fillLight.position.set(-5, 5, -5);
+        scene.add(fillLight);
+        
+        const rimLight = new THREE.SpotLight(0xe94560, 1.5);
+        rimLight.position.set(0, 2, -5);
+        rimLight.lookAt(0, 0, 0);
+        scene.add(rimLight);
+        
+        // ===== 粒子系统 =====
+        const particleCount = 100;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleVelocities = [];
+        
+        for(let i = 0; i < particleCount; i++) {
+            particlePositions[i * 3] = (Math.random() - 0.5) * 15;
+            particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+            particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+            particleVelocities.push({
+                x: (Math.random() - 0.5) * 0.01,
+                y: (Math.random() - 0.5) * 0.01,
+                z: (Math.random() - 0.5) * 0.01
+            });
+        }
+        
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0x4169e1,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.4,
+            sizeAttenuation: true
+        });
+        
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
+        
+        // ===== 材质定义 =====
+        const materials = {
+            titanium: new THREE.MeshPhysicalMaterial({
+                color: 0x4a4a5a,
+                roughness: 0.3,
+                metalness: 0.9,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.1
+            }),
+            titaniumHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0x5a5a6a,
+                roughness: 0.3,
+                metalness: 0.9,
+                clearcoat: 0.5,
+                emissive: 0x3a3a4a,
+                emissiveIntensity: 0.3
+            }),
+            eink: new THREE.MeshPhysicalMaterial({
+                color: 0xf0f0f0,
+                roughness: 0.8,
+                metalness: 0.1,
+                clearcoat: 0.2
+            }),
+            einkHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.1,
+                emissive: 0x222222,
+                emissiveIntensity: 0.1
+            }),
+            sapphire: new THREE.MeshPhysicalMaterial({
+                color: 0x88aaff,
+                roughness: 0.05,
+                metalness: 0,
+                transmission: 0.9,
+                thickness: 0.5,
+                clearcoat: 1
+            }),
+            rubber: new THREE.MeshStandardMaterial({
+                color: 0x1a3a1a,
+                roughness: 0.9,
+                metalness: 0.1
+            }),
+            rubberHighlight: new THREE.MeshStandardMaterial({
+                color: 0x2a4a2a,
+                roughness: 0.9,
+                metalness: 0.1,
+                emissive: 0x1a3a1a,
+                emissiveIntensity: 0.2
+            }),
+            sensor: new THREE.MeshPhysicalMaterial({
+                color: 0x2a2a3a,
+                roughness: 0.4,
+                metalness: 0.7,
+                clearcoat: 0.3
+            }),
+            sensorHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0xe94560,
+                roughness: 0.4,
+                metalness: 0.7,
+                emissive: 0xe94560,
+                emissiveIntensity: 0.4
+            }),
+            led: new THREE.MeshBasicMaterial({
+                color: 0x00ff88
+            }),
+            ledActive: new THREE.MeshBasicMaterial({
+                color: 0xff0044
+            })
+        };
+        
+        // ===== 构建手表 =====
+        const parts = {};
+        const watchGroup = new THREE.Group();
+        scene.add(watchGroup);
+        
+        // 表壳主体
+        parts.caseGroup = new THREE.Group();
+        
+        // 表壳 - 圆柱形
+        const caseGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 64);
+        const caseMesh = new THREE.Mesh(caseGeometry, materials.titanium);
+        caseMesh.rotation.x = Math.PI / 2;
+        caseMesh.castShadow = true;
+        caseMesh.userData.part = 'case';
+        parts.caseGroup.add(caseMesh);
+        
+        // 表圈（稍大的外圈）
+        const bezelGeometry = new THREE.CylinderGeometry(1.6, 1.6, 0.2, 64);
+        const bezelMesh = new THREE.Mesh(bezelGeometry, materials.titanium);
+        bezelMesh.rotation.x = Math.PI / 2;
+        bezelMesh.position.z = 0.1;
+        bezelMesh.castShadow = true;
+        parts.caseGroup.add(bezelMesh);
+        
+        // 表冠
+        const crownGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
+        const crownMesh = new THREE.Mesh(crownGeometry, materials.titanium);
+        crownMesh.rotation.z = Math.PI / 2;
+        crownMesh.position.set(1.65, 0, 0);
+        crownMesh.castShadow = true;
+        parts.caseGroup.add(crownMesh);
+        
+        // 功能按钮
+        const btnGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 16);
+        const btnMesh = new THREE.Mesh(btnGeometry, materials.titanium);
+        btnMesh.rotation.z = Math.PI / 2;
+        btnMesh.position.set(1.6, 0.5, 0);
+        parts.caseGroup.add(btnMesh);
+        
+        const btn2Mesh = new THREE.Mesh(btnGeometry, materials.titanium);
+        btn2Mesh.rotation.z = Math.PI / 2;
+        btn2Mesh.position.set(1.6, -0.5, 0);
+        parts.caseGroup.add(btn2Mesh);
+        
+        watchGroup.add(parts.caseGroup);
+        
+        // 屏幕模组
+        parts.screenGroup = new THREE.Group();
+        
+        // E-ink屏幕
+        const screenGeometry = new THREE.CircleGeometry(1.3, 64);
+        const screenMesh = new THREE.Mesh(screenGeometry, materials.eink);
+        screenMesh.position.z = 0.21;
+        screenMesh.userData.part = 'screen';
+        parts.screenGroup.add(screenMesh);
+        
+        // 模拟屏幕内容 - 时间显示
+        const hourHand = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.8, 0.02),
+            new THREE.MeshBasicMaterial({ color: 0x000000 })
+        );
+        hourHand.position.z = 0.22;
+        parts.screenGroup.add(hourHand);
+        
+        const minuteHand = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 1.1, 0.02),
+            new THREE.MeshBasicMaterial({ color: 0x333333 })
+        );
+        minuteHand.position.z = 0.22;
+        parts.screenGroup.add(minuteHand);
+        
+        const centerDot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.06, 0.06, 0.03, 16),
+            new THREE.MeshBasicMaterial({ color: 0xe94560 })
+        );
+        centerDot.rotation.x = Math.PI / 2;
+        centerDot.position.z = 0.23;
+        parts.screenGroup.add(centerDot);
+        
+        // 刻度
+        for(let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2;
+            const tick = new THREE.Mesh(
+                new THREE.BoxGeometry(0.04, 0.15, 0.01),
+                new THREE.MeshBasicMaterial({ color: 0x000000 })
+            );
+            tick.position.x = Math.sin(angle) * 1.1;
+            tick.position.y = Math.cos(angle) * 1.1;
+            tick.position.z = 0.22;
+            tick.rotation.z = -angle;
+            parts.screenGroup.add(tick);
+        }
+        
+        watchGroup.add(parts.screenGroup);
+        
+        // 蓝宝石玻璃
+        const glassGeometry = new THREE.CylinderGeometry(1.45, 1.45, 0.05, 64);
+        const glassMesh = new THREE.Mesh(glassGeometry, materials.sapphire);
+        glassMesh.rotation.x = Math.PI / 2;
+        glassMesh.position.z = 0.3;
+        watchGroup.add(glassMesh);
+        
+        // 表带
+        parts.bandGroup = new THREE.Group();
+        
+        // 上表带
+        const bandTopCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, 1.5, -0.1),
+            new THREE.Vector3(0, 2.5, -0.5),
+            new THREE.Vector3(0, 3, -1.2),
+            new THREE.Vector3(0, 2.8, -2)
+        ]);
+        
+        const bandGeometry = new THREE.TubeGeometry(bandTopCurve, 20, 0.7, 8, false);
+        const bandTop = new THREE.Mesh(bandGeometry, materials.rubber);
+        bandTop.castShadow = true;
+        bandTop.userData.part = 'band';
+        parts.bandGroup.add(bandTop);
+        
+        // 下表带
+        const bandBottomCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, -1.5, -0.1),
+            new THREE.Vector3(0, -2.5, -0.5),
+            new THREE.Vector3(0, -3, -1.2),
+            new THREE.Vector3(0, -2.8, -2)
+        ]);
+        
+        const bandBottomGeometry = new THREE.TubeGeometry(bandBottomCurve, 20, 0.7, 8, false);
+        const bandBottom = new THREE.Mesh(bandBottomGeometry, materials.rubber);
+        bandBottom.castShadow = true;
+        bandBottom.userData.part = 'band';
+        parts.bandGroup.add(bandBottom);
+        
+        // 表扣
+        const buckleGeometry = new THREE.BoxGeometry(0.8, 0.15, 0.3);
+        const buckleMesh = new THREE.Mesh(buckleGeometry, materials.titanium);
+        buckleMesh.position.set(0, -2.8, -2);
+        buckleMesh.castShadow = true;
+        parts.bandGroup.add(buckleMesh);
+        
+        watchGroup.add(parts.bandGroup);
+        
+        // 背面传感器模组
+        parts.sensorGroup = new THREE.Group();
+        
+        // 传感器外壳
+        const sensorCaseGeometry = new THREE.CylinderGeometry(1.3, 1.3, 0.15, 64);
+        const sensorCase = new THREE.Mesh(sensorCaseGeometry, materials.sensor);
+        sensorCase.rotation.x = Math.PI / 2;
+        sensorCase.position.z = -0.25;
+        sensorCase.userData.part = 'sensor';
+        parts.sensorGroup.add(sensorCase);
+        
+        // PPG传感器（绿光LED + 光电二极管）
+        const ppgLed = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 0.05, 16),
+            materials.led
+        );
+        ppgLed.rotation.x = Math.PI / 2;
+        ppgLed.position.set(0, 0.3, -0.33);
+        parts.sensorGroup.add(ppgLed);
+        
+        const ppgSensor = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16),
+            new THREE.MeshStandardMaterial({ color: 0x111111 })
+        );
+        ppgSensor.rotation.x = Math.PI / 2;
+        ppgSensor.position.set(0, -0.3, -0.33);
+        parts.sensorGroup.add(ppgSensor);
+        
+        // 充电触点
+        const contact1 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16),
+            new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 })
+        );
+        contact1.rotation.x = Math.PI / 2;
+        contact1.position.set(0.5, 0, -0.33);
+        parts.sensorGroup.add(contact1);
+        
+        const contact2 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16),
+            new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 })
+        );
+        contact2.rotation.x = Math.PI / 2;
+        contact2.position.set(-0.5, 0, -0.33);
+        parts.sensorGroup.add(contact2);
+        
+        watchGroup.add(parts.sensorGroup);
+        
+        // ===== 动画状态 =====
+        let autoRotate = false;
+        let exploded = false;
+        let highlightedPart = null;
+        let time = 0;
+        let sosActive = false;
+        
+        // ===== 主动画循环 =====
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+            
+            // 自动旋转
+            if (autoRotate) {
+                watchGroup.rotation.y += 0.005;
+            }
+            
+            // 悬浮效果
+            watchGroup.position.y = Math.sin(time * 0.5) * 0.05;
+            
+            // 屏幕指针转动
+            hourHand.rotation.z = -time * 0.1;
+            minuteHand.rotation.z = -time * 0.5;
+            
+            // 粒子动画
+            const positions = particleGeometry.attributes.position.array;
+            for(let i = 0; i < particleCount; i++) {
+                positions[i * 3] += particleVelocities[i].x;
+                positions[i * 3 + 1] += particleVelocities[i].y;
+                positions[i * 3 + 2] += particleVelocities[i].z;
+                
+                if(Math.abs(positions[i * 3]) > 7) particleVelocities[i].x *= -1;
+                if(Math.abs(positions[i * 3 + 1]) > 7) particleVelocities[i].y *= -1;
+                if(Math.abs(positions[i * 3 + 2]) > 7) particleVelocities[i].z *= -1;
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+            
+            // SOS模式 - 红灯闪烁
+            if(sosActive) {
+                const sosIntensity = (Math.sin(time * 10) + 1) / 2;
+                ppgLed.material = materials.ledActive;
+                materials.ledActive.color.setHSL(0, 1, sosIntensity * 0.5 + 0.25);
+            } else {
+                // 心率模拟 - 绿光脉动
+                const heartIntensity = 0.5 + Math.sin(time * 3) * 0.3;
+                materials.led.color.setHSL(0.4, 1, heartIntensity);
+            }
+            
+            // 配对信号波
+            if(!exploded) {
+                parts.caseGroup.position.z = Math.sin(time * 2) * 0.02;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // ===== 交互功能 =====
+        function resetView() {
+            camera.position.set(6, 4, 6);
+            watchGroup.rotation.set(0, 0, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            
+            document.querySelectorAll('.viewer-controls button').forEach(btn => btn.classList.remove('active'));
+        }
+        
+        function explodeView() {
+            exploded = !exploded;
+            const btn = document.getElementById('btn-explode');
+            btn.classList.toggle('active', exploded);
+            
+            const duration = 800;
+            const startTime = Date.now();
+            
+            const startPositions = {
+                screen: parts.screenGroup.position.clone(),
+                band: parts.bandGroup.position.clone(),
+                sensor: parts.sensorGroup.position.clone(),
+                case: parts.caseGroup.position.clone()
+            };
+            
+            const targetPositions = exploded ? {
+                screen: new THREE.Vector3(0, 0, 1.5),
+                band: new THREE.Vector3(0, 0, -1),
+                sensor: new THREE.Vector3(0, 0, -1.5),
+                case: new THREE.Vector3(0, 0, 0)
+            } : {
+                screen: new THREE.Vector3(0, 0, 0),
+                band: new THREE.Vector3(0, 0, 0),
+                sensor: new THREE.Vector3(0, 0, 0),
+                case: new THREE.Vector3(0, 0, 0)
+            };
+            
+            function animateExplode() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 4);
+                
+                parts.screenGroup.position.lerpVectors(startPositions.screen, targetPositions.screen, ease);
+                parts.bandGroup.position.lerpVectors(startPositions.band, targetPositions.band, ease);
+                parts.sensorGroup.position.lerpVectors(startPositions.sensor, targetPositions.sensor, ease);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateExplode);
+                }
+            }
+            animateExplode();
+        }
+        
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            document.getElementById('btn-rotate').classList.toggle('active', autoRotate);
+        }
+        
+        function highlightPart(partName) {
+            // 重置所有高亮
+            caseMesh.material = materials.titanium;
+            screenMesh.material = materials.eink;
+            bandTop.material = materials.rubber;
+            bandBottom.material = materials.rubber;
+            sensorCase.material = materials.sensor;
+            
+            highlightedPart = partName;
+            
+            // 高亮对应部件
+            switch(partName) {
+                case 'case':
+                    caseMesh.material = materials.titaniumHighlight;
+                    bezelMesh.material = materials.titaniumHighlight;
+                    break;
+                case 'screen':
+                    screenMesh.material = materials.einkHighlight;
+                    break;
+                case 'band':
+                    bandTop.material = materials.rubberHighlight;
+                    bandBottom.material = materials.rubberHighlight;
+                    break;
+                case 'sensor':
+                    sensorCase.material = materials.sensorHighlight;
+                    break;
+            }
+            
+            // 3秒后取消高亮
+            setTimeout(() => {
+                if(highlightedPart === partName) {
+                    caseMesh.material = materials.titanium;
+                    bezelMesh.material = materials.titanium;
+                    screenMesh.material = materials.eink;
+                    bandTop.material = materials.rubber;
+                    bandBottom.material = materials.rubber;
+                    sensorCase.material = materials.sensor;
+                    highlightedPart = null;
+                }
+            }, 3000);
+        }
+        
+        // SOS触发
+        function triggerSOS() {
+            sosActive = !sosActive;
+            const sosBtn = document.querySelector('.sos-demo');
+            sosBtn.style.background = sosActive 
+                ? 'linear-gradient(135deg, #ff0044, #ff6b6b)' 
+                : 'linear-gradient(135deg, #e94560, #ff6b6b)';
+            sosBtn.textContent = sosActive ? 'STOP' : 'SOS';
+        }
+        
+        // ===== 详情数据 =====
+        const componentDetails = {
+            case: {
+                title: '钛合金表壳',
+                items: [
+                    '材质: TC4航空级钛合金，CNC一体成型',
+                    '重量: 表壳仅28g，整机45g（含表带）',
+                    '镜面: 蓝宝石玻璃，莫氏硬度9级',
+                    '防水: 5ATM（50米防水）',
+                    '表冠: 数字表冠+2个功能按键',
+                    '尺寸: 46mm表径，11.5mm厚度',
+                    '工艺: 微弧氧化表面处理，防指纹涂层'
+                ]
+            },
+            screen: {
+                title: '电子墨水显示屏',
+                items: [
+                    '类型: 1.3寸圆形E-ink Carta 1200',
+                    '分辨率: 416×416像素，323 PPI',
+                    '特性: 阳光下清晰可见，180°视角',
+                    '功耗: 刷新时<50mW，静态0mW',
+                    'Always-On: 支持常显，不耗电',
+                    '背光: 无前光设计，依赖环境光',
+                    '刷新: 局部刷新0.3s，全局刷新0.8s'
+                ]
+            },
+            band: {
+                title: '氟橡胶表带',
+                items: [
+                    '材质: 医疗级氟橡胶（FKM）',
+                    '特性: 抗紫外线、耐汗渍、防过敏',
+                    '耐温: -30°C ~ 120°C工作温度',
+                    '快拆: 20mm标准快拆接口',
+                    '纹理: 内凹导汗槽设计',
+                    '长度: 140-210mm可调',
+                    '替换: 兼容第三方20mm表带'
+                ]
+            },
+            sensor: {
+                title: '生物传感器阵列',
+                items: [
+                    'PPG心率: 绿光LED+光电二极管',
+                    '血氧: 红光+红外双LED',
+                    '体温: 皮肤温度传感器',
+                    '运动: 6轴加速度计+陀螺仪',
+                    '跌倒检测: 算法自动触发SOS',
+                    '采样: 心率24Hz连续监测',
+                    '精度: 心率±3bpm，血氧±2%'
+                ]
+            },
+            comm: {
+                title: '离线通信系统',
+                items: [
+                    'LoRa: 433MHz频段，100m开阔距离',
+                    '蓝牙: BLE 5.2，与手机/基站连接',
+                    'Mesh: 支持多手表组网中继',
+                    '数据同步: 心率、步数、位置',
+                    '消息: 接收基站广播消息',
+                    'SOS: 一键求救，基站接收报警',
+                    '离线地图: 同步基站离线地图数据'
+                ]
+            }
+        };
+        
+        function showDetail(component) {
+            const panel = document.getElementById('detail-panel');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+            
+            // 更新活跃状态
+            document.querySelectorAll('.component-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-component="${component}"]`).classList.add('active');
+            
+            // 高亮3D部件
+            highlightPart(component === 'comm' ? 'case' : component);
+            
+            // 填充内容
+            const detail = componentDetails[component];
+            title.innerHTML = `<span class="badge">SPECIFICATION</span>${detail.title}`;
+            content.innerHTML = detail.items.map(item => `<li>${item}</li>`).join('');
+            
+            panel.classList.add('show');
+        }
+        
+        // ===== 初始化 =====
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 1500);
+        });
+        
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>

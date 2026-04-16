@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARK · 文明守望 - 原型展示</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0f2847 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        /* 加载动画 */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(233, 69, 96, 0.2);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loader-text {
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 20px 30px;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #e94560, transparent);
+        }
+        
+        .header-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #e94560;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #e94560 50%, #ff6b6b 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+        
+        .header h1 span {
+            font-weight: 300;
+            opacity: 0.7;
+        }
+        
+        .header p {
+            color: #8892b0;
+            font-size: 1.1rem;
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .main-container {
+            display: flex;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px 40px 40px;
+            gap: 40px;
+        }
+        
+        .viewer-section {
+            flex: 1.5;
+            min-width: 0;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 600px;
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a1a 100%);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 0 1px rgba(255,255,255,0.05),
+                0 20px 80px rgba(0,0,0,0.6),
+                0 0 100px rgba(233, 69, 96, 0.1);
+        }
+        
+        #canvas-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            border: 1px solid rgba(233, 69, 96, 0.15);
+            pointer-events: none;
+        }
+        
+        .viewer-controls {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        
+        .viewer-controls button {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .viewer-controls button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(255, 107, 107, 0.2));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .viewer-controls button:hover {
+            border-color: rgba(233, 69, 96, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(233, 69, 96, 0.3);
+        }
+        
+        .viewer-controls button:hover::before {
+            opacity: 1;
+        }
+        
+        .viewer-controls button.active {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #e94560;
+            color: #ff6b6b;
+        }
+        
+        .info-section {
+            flex: 1;
+            min-width: 380px;
+            max-width: 420px;
+        }
+        
+        .component-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #e94560, #ff6b6b);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .component-card:hover, .component-card.active {
+            background: rgba(233, 69, 96, 0.08);
+            border-color: rgba(233, 69, 96, 0.3);
+            transform: translateX(8px);
+            box-shadow: 0 10px 40px rgba(233, 69, 96, 0.15);
+        }
+        
+        .component-card:hover::before, .component-card.active::before {
+            opacity: 1;
+        }
+        
+        .component-card .icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.2), rgba(255, 107, 107, 0.1));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            border: 1px solid rgba(233, 69, 96, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .component-card:hover .icon {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.3), rgba(255, 107, 107, 0.2));
+        }
+        
+        .component-card h3 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .component-card p {
+            color: #8892b0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+        
+        .detail-panel {
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 32px;
+            margin-top: 24px;
+            border: 1px solid rgba(233, 69, 96, 0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .detail-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.5), transparent);
+        }
+        
+        .detail-panel.show {
+            display: block;
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .detail-panel h2 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .detail-panel h2 .badge {
+            padding: 4px 10px;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: #e94560;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .detail-panel ul {
+            list-style: none;
+        }
+        
+        .detail-panel li {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            color: #a8b2d1;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: color 0.3s;
+        }
+        
+        .detail-panel li:hover {
+            color: #fff;
+        }
+        
+        .detail-panel li:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-panel li::before {
+            content: "→";
+            color: #e94560;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .spec-item {
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s;
+        }
+        
+        .spec-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(233, 69, 96, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .spec-item .label {
+            color: #64748b;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .spec-item .value {
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        
+        .legend-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+        
+        .legend-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(10, 10, 26, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-size: 0.8rem;
+            color: #00ff88;
+            font-weight: 500;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 20px;
+        }
+        
+        .footer-brand {
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+                padding: 20px;
+            }
+            .info-section {
+                min-width: auto;
+                max-width: none;
+            }
+            #canvas-container {
+                height: 500px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            .main-container {
+                padding: 15px;
+            }
+            .legend {
+                top: 15px;
+                left: 15px;
+                padding: 12px;
+            }
+            .viewer-controls {
+                padding: 8px 16px;
+                gap: 8px;
+            }
+            .viewer-controls button {
+                padding: 8px 14px;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载动画 -->
+    <div class="loader" id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">INITIALIZING ARK PROTOTYPE...</div>
+    </div>
+
+    <div class="header">
+        <div class="header-badge">Prototype v1.0</div>
+        <h1>ARK <span>文明守望</span></h1>
+        <p>基于一加8T + Linux容器方案的离线知识生存设备<br>Offline Knowledge Survival Node for the Post-Network Era</p>
+    </div>
+    
+    <div class="main-container">
+        <div class="viewer-section">
+            <div id="canvas-container">
+                <div class="connection-status">
+                    <div class="status-dot"></div>
+                    <span class="status-text">SYSTEM ONLINE</span>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-title">Components</div>
+                    <div class="legend-item" data-part="case" onclick="highlightPart('case')">
+                        <div class="legend-color" style="background: #555;"></div>
+                        <span>3D打印外壳</span>
+                    </div>
+                    <div class="legend-item" data-part="phone" onclick="highlightPart('phone')">
+                        <div class="legend-color" style="background: #1a1a2e;"></div>
+                        <span>一加8T主机</span>
+                    </div>
+                    <div class="legend-item" data-part="solar" onclick="highlightPart('solar')">
+                        <div class="legend-color" style="background: #4169e1;"></div>
+                        <span>太阳能电池板</span>
+                    </div>
+                    <div class="legend-item" data-part="battery" onclick="highlightPart('battery')">
+                        <div class="legend-color" style="background: #e94560;"></div>
+                        <span>储能电池</span>
+                    </div>
+                </div>
+                
+                <div class="viewer-controls">
+                    <button onclick="resetView()" id="btn-reset">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"/>
+                            <path d="M3 3v9h9"/>
+                        </svg>
+                        重置
+                    </button>
+                    <button onclick="explodeView()" id="btn-explode">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+                        </svg>
+                        爆炸视图
+                    </button>
+                    <button onclick="toggleRotation()" id="btn-rotate">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                        </svg>
+                        旋转
+                    </button>
+                </div>
+            </div>
+            
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <div class="label">计算平台</div>
+                    <div class="value">Snapdragon 865</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">内存</div>
+                    <div class="value">12GB LPDDR5</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">存储</div>
+                    <div class="value">256GB + 1TB</div>
+                </div>
+                <div class="spec-item">
+                    <div class="label">太阳能功率</div>
+                    <div class="value">20W PD快充</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="component-card" data-component="case" onclick="showDetail('case')">
+                <div class="icon">🛡️</div>
+                <h3>3D打印防护外壳</h3>
+                <p>IP54级防水防尘设计，PETG/ASA材质，集成散热风道与折叠太阳能支架</p>
+            </div>
+            
+            <div class="component-card" data-component="phone" onclick="showDetail('phone')">
+                <div class="icon">📱</div>
+                <h3>一加8T主机</h3>
+                <p>Snapdragon 865核心，7nm工艺，Termux+Debian容器运行完整离线AI系统</p>
+            </div>
+            
+            <div class="component-card" data-component="solar" onclick="showDetail('solar')">
+                <div class="icon">☀️</div>
+                <h3>太阳能供电系统</h3>
+                <p>20W折叠式单晶硅面板，USB-C PD 18W快充，阴天低光环境仍可供电</p>
+            </div>
+            
+            <div class="component-card" data-component="battery" onclick="showDetail('battery')">
+                <div class="icon">🔋</div>
+                <h3>储能缓冲电池</h3>
+                <p>20000mAh聚合物锂电，74Wh容量，夜间持续运行10+小时，支持反向充电</p>
+            </div>
+            
+            <div class="component-card" data-component="software" onclick="showDetail('software')">
+                <div class="icon">💿</div>
+                <h3>离线软件栈</h3>
+                <p>Linux容器 + 本地LLM推理 + Kiwix离线百科 + OsmAnd离线地图 + 15GB知识库</p>
+            </div>
+            
+            <div id="detail-panel" class="detail-panel">
+                <h2 id="detail-title">
+                    <span class="badge">SPECIFICATION</span>
+                </h2>
+                <ul id="detail-content"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <div class="footer-brand">ARK · 文明守望</div>
+        <p>Offline Knowledge Survival Node | Built for the unknowable future</p>
+    </div>
+
+    <script>
+        // ===== THREE.JS 高级场景设置 =====
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+        scene.fog = new THREE.Fog(0x0a0a1a, 10, 50);
+        
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(10, 8, 12);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 30;
+        controls.maxPolarAngle = Math.PI / 1.5;
+        
+        // ===== 高级灯光系统 =====
+        const ambientLight = new THREE.AmbientLight(0x1a1a3e, 0.5);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        mainLight.position.set(10, 20, 10);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 50;
+        mainLight.shadow.bias = -0.001;
+        scene.add(mainLight);
+        
+        const fillLight = new THREE.DirectionalLight(0x4169e1, 0.8);
+        fillLight.position.set(-10, 10, -5);
+        scene.add(fillLight);
+        
+        const rimLight = new THREE.SpotLight(0xe94560, 2);
+        rimLight.position.set(0, 5, -10);
+        rimLight.lookAt(0, 0, 0);
+        scene.add(rimLight);
+        
+        // ===== 粒子系统 =====
+        const particleCount = 200;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleVelocities = [];
+        
+        for(let i = 0; i < particleCount; i++) {
+            particlePositions[i * 3] = (Math.random() - 0.5) * 30;
+            particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 30;
+            particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+            particleVelocities.push({
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02
+            });
+        }
+        
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0xe94560,
+            size: 0.08,
+            transparent: true,
+            opacity: 0.6,
+            sizeAttenuation: true
+        });
+        
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
+        
+        // ===== 设备组件管理 =====
+        const parts = {};
+        const deviceGroup = new THREE.Group();
+        scene.add(deviceGroup);
+        
+        // 高级材质定义
+        const materials = {
+            case: new THREE.MeshPhysicalMaterial({
+                color: 0x333344,
+                roughness: 0.4,
+                metalness: 0.6,
+                clearcoat: 0.3,
+                clearcoatRoughness: 0.2
+            }),
+            caseHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0x444466,
+                roughness: 0.4,
+                metalness: 0.6,
+                clearcoat: 0.3,
+                clearcoatRoughness: 0.2,
+                emissive: 0x222244,
+                emissiveIntensity: 0.3
+            }),
+            phone: new THREE.MeshPhysicalMaterial({
+                color: 0x1a1a2e,
+                roughness: 0.2,
+                metalness: 0.9,
+                clearcoat: 0.8
+            }),
+            phoneHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0x2a2a4e,
+                roughness: 0.2,
+                metalness: 0.9,
+                clearcoat: 0.8,
+                emissive: 0x1a1a3e,
+                emissiveIntensity: 0.4
+            }),
+            screen: new THREE.MeshPhysicalMaterial({
+                color: 0x000000,
+                roughness: 0.05,
+                metalness: 1,
+                emissive: 0x112244,
+                emissiveIntensity: 0.5
+            }),
+            solar: new THREE.MeshPhysicalMaterial({
+                color: 0x1a3a8a,
+                roughness: 0.3,
+                metalness: 0.7,
+                clearcoat: 0.5
+            }),
+            solarHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0x2a4aaa,
+                roughness: 0.3,
+                metalness: 0.7,
+                clearcoat: 0.5,
+                emissive: 0x1a3a8a,
+                emissiveIntensity: 0.3
+            }),
+            battery: new THREE.MeshPhysicalMaterial({
+                color: 0x8a1a3a,
+                roughness: 0.4,
+                metalness: 0.5
+            }),
+            batteryHighlight: new THREE.MeshPhysicalMaterial({
+                color: 0xaa2a4a,
+                roughness: 0.4,
+                metalness: 0.5,
+                emissive: 0x8a1a3a,
+                emissiveIntensity: 0.3
+            }),
+            led: new THREE.MeshPhysicalMaterial({
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 1,
+                roughness: 0.1
+            }),
+            cable: new THREE.MeshPhysicalMaterial({
+                color: 0x1a1a2e,
+                roughness: 0.6,
+                metalness: 0.3
+            })
+        };
+        
+        // ===== 构建3D打印外壳 =====
+        parts.caseGroup = new THREE.Group();
+        
+        // 主箱体 - 带圆角效果
+        const caseShape = new THREE.Shape();
+        const width = 4, height = 5.5, radius = 0.3;
+        caseShape.moveTo(-width/2 + radius, -height/2);
+        caseShape.lineTo(width/2 - radius, -height/2);
+        caseShape.quadraticCurveTo(width/2, -height/2, width/2, -height/2 + radius);
+        caseShape.lineTo(width/2, height/2 - radius);
+        caseShape.quadraticCurveTo(width/2, height/2, width/2 - radius, height/2);
+        caseShape.lineTo(-width/2 + radius, height/2);
+        caseShape.quadraticCurveTo(-width/2, height/2, -width/2, height/2 - radius);
+        caseShape.lineTo(-width/2, -height/2 + radius);
+        caseShape.quadraticCurveTo(-width/2, -height/2, -width/2 + radius, -height/2);
+        
+        const extrudeSettings = { depth: 1.2, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.05, bevelThickness: 0.05 };
+        const caseGeometry = new THREE.ExtrudeGeometry(caseShape, extrudeSettings);
+        const caseMesh = new THREE.Mesh(caseGeometry, materials.case);
+        caseMesh.castShadow = true;
+        caseMesh.receiveShadow = true;
+        caseMesh.userData.part = 'case';
+        parts.caseGroup.add(caseMesh);
+        
+        // 加强筋
+        for(let y of [2.5, -2.5]) {
+            const rib = new THREE.Mesh(
+                new THREE.BoxGeometry(4.3, 0.4, 1.4),
+                materials.case
+            );
+            rib.position.y = y;
+            rib.castShadow = true;
+            parts.caseGroup.add(rib);
+        }
+        
+        // 散热格栅
+        parts.vents = [];
+        for(let i = 0; i < 8; i++) {
+            const vent = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.12, 1.35, 16),
+                new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 })
+            );
+            vent.rotation.x = Math.PI / 2;
+            vent.position.set(-1.4 + i * 0.4, 0, -0.65);
+            parts.caseGroup.add(vent);
+            parts.vents.push(vent);
+        }
+        
+        // USB-C接口
+        const usbPort = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.3, 0.1),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.8 })
+        );
+        usbPort.position.set(0, -2, 0.65);
+        parts.caseGroup.add(usbPort);
+        
+        deviceGroup.add(parts.caseGroup);
+        
+        // ===== 一加8T主机 =====
+        parts.phoneGroup = new THREE.Group();
+        
+        const phoneBody = new THREE.Mesh(
+            new THREE.BoxGeometry(3.2, 4.2, 0.4),
+            materials.phone
+        );
+        phoneBody.position.z = 0.2;
+        phoneBody.castShadow = true;
+        phoneBody.userData.part = 'phone';
+        parts.phoneGroup.add(phoneBody);
+        
+        // 屏幕（带微曲效果）
+        const screenGeo = new THREE.BoxGeometry(2.8, 3.8, 0.02);
+        const screen = new THREE.Mesh(screenGeo, materials.screen);
+        screen.position.z = 0.45;
+        screen.userData.part = 'phone';
+        parts.phoneGroup.add(screen);
+        
+        // 摄像头模组
+        const cameraModule = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 })
+        );
+        cameraModule.position.set(1, 1.5, 0.45);
+        cameraModule.rotation.x = Math.PI / 2;
+        parts.phoneGroup.add(cameraModule);
+        
+        // 闪光灯
+        const flash = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.05, 16),
+            new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffee, emissiveIntensity: 0.3 })
+        );
+        flash.position.set(1.5, 1.5, 0.45);
+        flash.rotation.x = Math.PI / 2;
+        parts.phoneGroup.add(flash);
+        
+        deviceGroup.add(parts.phoneGroup);
+        
+        // ===== 太阳能供电系统 =====
+        parts.solarGroup = new THREE.Group();
+        
+        // 支架臂
+        const armGroup = new THREE.Group();
+        const arm1 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.25, 2.5, 0.25),
+            materials.case
+        );
+        arm1.position.set(-2.3, 0.5, -0.8);
+        arm1.rotation.z = -0.3;
+        armGroup.add(arm1);
+        
+        const arm2 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.25, 2.5, 0.25),
+            materials.case
+        );
+        arm2.position.set(-2.3, 0.5, -1.8);
+        arm2.rotation.z = -0.3;
+        armGroup.add(arm2);
+        
+        parts.solarGroup.add(armGroup);
+        
+        // 太阳能板主体
+        const solarPanel = new THREE.Mesh(
+            new THREE.BoxGeometry(3.5, 4.5, 0.12),
+            materials.solar
+        );
+        solarPanel.position.set(-3.5, 2, -1.3);
+        solarPanel.rotation.z = -0.3;
+        solarPanel.rotation.y = -0.15;
+        solarPanel.castShadow = true;
+        solarPanel.userData.part = 'solar';
+        parts.solarGroup.add(solarPanel);
+        
+        // 太阳能板网格
+        parts.solarCells = [];
+        for(let i = 0; i < 3; i++) {
+            for(let j = 0; j < 4; j++) {
+                const cell = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.85, 0.85, 0.02),
+                    new THREE.MeshPhysicalMaterial({
+                        color: 0x2244cc,
+                        roughness: 0.2,
+                        metalness: 0.8,
+                        clearcoat: 0.6
+                    })
+                );
+                cell.position.set(
+                    -3.5 + (i - 1) * 1,
+                    2 + (j - 1.5) * 1,
+                    -1.24
+                );
+                cell.rotation.z = -0.3;
+                cell.rotation.y = -0.15;
+                parts.solarGroup.add(cell);
+                parts.solarCells.push(cell);
+            }
+        }
+        
+        deviceGroup.add(parts.solarGroup);
+        
+        // ===== 储能电池 =====
+        parts.batteryGroup = new THREE.Group();
+        
+        const batteryBody = new THREE.Mesh(
+            new THREE.BoxGeometry(2.5, 1.5, 0.8),
+            materials.battery
+        );
+        batteryBody.position.set(0, -3.5, 0);
+        batteryBody.castShadow = true;
+        batteryBody.userData.part = 'battery';
+        parts.batteryGroup.add(batteryBody);
+        
+        // LED电量指示器
+        parts.leds = [];
+        for(let i = 0; i < 4; i++) {
+            const led = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 16, 16),
+                materials.led.clone()
+            );
+            led.position.set(-0.9 + i * 0.6, -3.5, 0.45);
+            parts.batteryGroup.add(led);
+            parts.leds.push(led);
+        }
+        
+        // 电源按钮
+        const powerBtn = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        powerBtn.position.set(1.3, -3.5, 0.45);
+        powerBtn.rotation.x = Math.PI / 2;
+        parts.batteryGroup.add(powerBtn);
+        
+        deviceGroup.add(parts.batteryGroup);
+        
+        // ===== 底座 =====
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 0.4, 3.5),
+            new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.7 })
+        );
+        base.position.y = -4.8;
+        base.position.z = -0.5;
+        base.receiveShadow = true;
+        deviceGroup.add(base);
+        
+        // ===== 连接线（带动画） =====
+        parts.cables = [];
+        const cableCurve1 = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-2, -3.1, 0),
+            new THREE.Vector3(-1.2, -4, 0.3),
+            new THREE.Vector3(0, -3.9, 0.2)
+        ]);
+        
+        const cable1 = new THREE.Mesh(
+            new THREE.TubeGeometry(cableCurve1, 30, 0.1, 8, false),
+            materials.cable
+        );
+        deviceGroup.add(cable1);
+        parts.cables.push(cable1);
+        
+        // 能量流动粒子
+        parts.energyParticles = [];
+        for(let i = 0; i < 10; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.06, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+            );
+            particle.userData.progress = i / 10;
+            particle.userData.curve = cableCurve1;
+            parts.energyParticles.push(particle);
+            deviceGroup.add(particle);
+        }
+        
+        // ===== 动画状态 =====
+        let autoRotate = false;
+        let exploded = false;
+        let highlightedPart = null;
+        let time = 0;
+        
+        // ===== 主动画循环 =====
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+            
+            // 自动旋转
+            if (autoRotate) {
+                deviceGroup.rotation.y += 0.003;
+            }
+            
+            // 浮动效果
+            deviceGroup.position.y = Math.sin(time * 0.5) * 0.1;
+            
+            // 粒子系统动画
+            const positions = particleGeometry.attributes.position.array;
+            for(let i = 0; i < particleCount; i++) {
+                positions[i * 3] += particleVelocities[i].x;
+                positions[i * 3 + 1] += particleVelocities[i].y;
+                positions[i * 3 + 2] += particleVelocities[i].z;
+                
+                // 边界检测
+                if(Math.abs(positions[i * 3]) > 15) particleVelocities[i].x *= -1;
+                if(Math.abs(positions[i * 3 + 1]) > 15) particleVelocities[i].y *= -1;
+                if(Math.abs(positions[i * 3 + 2]) > 15) particleVelocities[i].z *= -1;
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+            
+            // LED呼吸灯效果
+            parts.leds.forEach((led, i) => {
+                const intensity = 0.5 + Math.sin(time * 2 + i * 0.5) * 0.5;
+                led.material.emissiveIntensity = intensity;
+            });
+            
+            // 能量粒子流动
+            parts.energyParticles.forEach((particle, i) => {
+                particle.userData.progress += 0.008;
+                if(particle.userData.progress > 1) particle.userData.progress = 0;
+                
+                const point = particle.userData.curve.getPoint(particle.userData.progress);
+                particle.position.copy(point);
+                
+                // 闪烁效果
+                const scale = 0.8 + Math.sin(time * 10 + i) * 0.4;
+                particle.scale.setScalar(scale);
+            });
+            
+            // 太阳能板微动
+            parts.solarGroup.rotation.z = Math.sin(time * 0.3) * 0.02;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // ===== 交互功能 =====
+        function resetView() {
+            camera.position.set(10, 8, 12);
+            deviceGroup.rotation.set(0, 0, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            
+            document.querySelectorAll('.viewer-controls button').forEach(btn => btn.classList.remove('active'));
+        }
+        
+        function explodeView() {
+            exploded = !exploded;
+            const btn = document.getElementById('btn-explode');
+            btn.classList.toggle('active', exploded);
+            
+            const duration = 800;
+            const startTime = Date.now();
+            
+            const startPositions = {
+                phone: parts.phoneGroup.position.clone(),
+                solar: parts.solarGroup.position.clone(),
+                battery: parts.batteryGroup.position.clone(),
+                case: parts.caseGroup.position.clone()
+            };
+            
+            const targetPositions = exploded ? {
+                phone: new THREE.Vector3(0, 0, 2),
+                solar: new THREE.Vector3(-2, 3, 0),
+                battery: new THREE.Vector3(0, -6, 0),
+                case: new THREE.Vector3(0, 0, 0)
+            } : {
+                phone: new THREE.Vector3(0, 0, 0),
+                solar: new THREE.Vector3(0, 0, 0),
+                battery: new THREE.Vector3(0, 0, 0),
+                case: new THREE.Vector3(0, 0, 0)
+            };
+            
+            function animateExplode() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 4);
+                
+                parts.phoneGroup.position.lerpVectors(startPositions.phone, targetPositions.phone, ease);
+                parts.solarGroup.position.lerpVectors(startPositions.solar, targetPositions.solar, ease);
+                parts.batteryGroup.position.lerpVectors(startPositions.battery, targetPositions.battery, ease);
+                
+                // 各部件内部散开
+                if(exploded) {
+                    parts.solarCells.forEach((cell, i) => {
+                        cell.position.z = -1.24 + Math.sin(i * 0.5 + time) * 0.1;
+                    });
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateExplode);
+                }
+            }
+            animateExplode();
+        }
+        
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            document.getElementById('btn-rotate').classList.toggle('active', autoRotate);
+        }
+        
+        function highlightPart(partName) {
+            // 重置所有高亮
+            Object.values(parts).forEach(part => {
+                if(part.userData && part.userData.originalMaterial) {
+                    part.material = part.userData.originalMaterial;
+                }
+            });
+            
+            highlightedPart = partName;
+            
+            // 高亮对应部件
+            switch(partName) {
+                case 'case':
+                    caseMesh.material = materials.caseHighlight;
+                    break;
+                case 'phone':
+                    parts.phoneGroup.children.forEach(child => {
+                        if(child.userData.part === 'phone') {
+                            child.material = materials.phoneHighlight;
+                        }
+                    });
+                    break;
+                case 'solar':
+                    solarPanel.material = materials.solarHighlight;
+                    break;
+                case 'battery':
+                    batteryBody.material = materials.batteryHighlight;
+                    break;
+            }
+            
+            // 3秒后取消高亮
+            setTimeout(() => {
+                if(highlightedPart === partName) {
+                    caseMesh.material = materials.case;
+                    parts.phoneGroup.children.forEach(child => {
+                        if(child.userData.part === 'phone') {
+                            child.material = materials.phone;
+                        }
+                    });
+                    solarPanel.material = materials.solar;
+                    batteryBody.material = materials.battery;
+                    highlightedPart = null;
+                }
+            }, 3000);
+        }
+        
+        // ===== 详情数据 =====
+        const componentDetails = {
+            case: {
+                title: '3D打印防护外壳',
+                items: [
+                    '材质: PETG/ASA 耐紫外线3D打印材料',
+                    '防护等级: IP54（防尘、防泼溅）',
+                    '结构: 双层设计，外层防护+内层减震',
+                    '散热: 8组风道散热孔，被动散热设计',
+                    '接口: 防水硅胶盖保护USB-C充电口',
+                    '安装: 太阳能板折叠支架一体化设计',
+                    '打印时长: 约12-16小时（分部件打印）'
+                ]
+            },
+            phone: {
+                title: '一加8T主机',
+                items: [
+                    'SoC: Qualcomm Snapdragon 865 (7nm)',
+                    'CPU: 1×2.84GHz + 3×2.42GHz + 4×1.8GHz',
+                    'GPU: Adreno 650',
+                    'RAM: 8GB/12GB LPDDR5',
+                    '存储: 256GB UFS 3.1 + 1TB SD扩展',
+                    '屏幕: 6.55" 120Hz AMOLED (2400×1080)',
+                    '原生电池: 4500mAh，支持65W快充',
+                    '系统: LineageOS 20 (Android 13) 去Google服务版'
+                ]
+            },
+            solar: {
+                title: '太阳能供电系统',
+                items: [
+                    '太阳能板: 单晶硅20W折叠式面板',
+                    '输出: USB-C PD 18W快充',
+                    '转换效率: ≥22%',
+                    '尺寸: 展开400×300mm / 折叠200×150mm',
+                    '重量: 约350g',
+                    '工作温度: -20°C ~ 60°C',
+                    '阴天模式: 5W低光环境仍可充电',
+                    '支架: 可调角度0-60°，优化日照接收'
+                ]
+            },
+            battery: {
+                title: '储能缓冲电池',
+                items: [
+                    '容量: 20000mAh (74Wh)',
+                    '电芯: 聚合物锂电池',
+                    '输出: USB-C PD 30W + USB-A 18W',
+                    '输入: USB-C PD 30W快充',
+                    '充电时间: 约3小时（太阳能满功率）',
+                    '循环寿命: >500次',
+                    '保护: 过充/过放/短路/温度保护',
+                    'LED电量显示: 4级电量指示'
+                ]
+            },
+            software: {
+                title: '离线软件栈',
+                items: [
+                    '容器: Andronix Debian 12 无桌面版',
+                    '本地AI: llama.cpp + Llama-3-8B-Q4_K_M（5GB）',
+                    '知识库: Kiwix服务器 + WikiMed + Appropedia',
+                    '地图: OsmAnd 离线地图包（省级数据）',
+                    '文档: Calibre-Web 电子书库',
+                    '工具: 离线翻译、计算器、单位转换',
+                    '启动器: Termux:Widget 一键启动脚本',
+                    '数据总量: 约15GB离线压缩数据'
+                ]
+            }
+        };
+        
+        function showDetail(component) {
+            const panel = document.getElementById('detail-panel');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+            
+            // 更新活跃状态
+            document.querySelectorAll('.component-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-component="${component}"]`).classList.add('active');
+            
+            // 高亮3D部件
+            highlightPart(component);
+            
+            // 填充内容
+            const detail = componentDetails[component];
+            title.innerHTML = `<span class="badge">SPECIFICATION</span>${detail.title}`;
+            content.innerHTML = detail.items.map(item => `<li>${item}</li>`).join('');
+            
+            panel.classList.add('show');
+        }
+        
+        // ===== 初始化 =====
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 1500);
+        });
+        
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>
